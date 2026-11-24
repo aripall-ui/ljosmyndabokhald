@@ -3,7 +3,7 @@ import * as store from './store.js';
 import * as dbx from './dropbox.js';
 import { useStore, useUI, openModal, Icon, Field, Segmented, Empty } from './components.js';
 import { MODALS } from './forms.js';
-import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting } from './views.js';
+import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting, YearSelect } from './views.js';
 
 const ROUTES = [
   { id: 'yfirlit', label: 'Yfirlit', icon: 'home', view: Dashboard },
@@ -48,7 +48,7 @@ function applyPalette(id) {
 function SyncIndicator() {
   useStore();
   const s = store.getSync();
-  if (store.getMode() !== 'dropbox') return html`<a class="sync local" href="#/stillingar" title="Gögn vistuð í þessum vafra">Aðeins í þessum vafra</a>`;
+  if (store.getMode() !== 'dropbox') return null;
   const map = { idle: ['ok', 'Vistað í Dropbox'], saving: ['busy', s.message || 'Vistar…'], error: ['err', s.message], offline: ['warn', s.message], auth: ['err', s.message] };
   const [cls, text] = map[s.status] || map.idle;
   return html`<a class=${'sync ' + cls} href="#/stillingar" title=${text}><${Icon} name="cloud" size=${16} /><span>${text}</span></a>`;
@@ -174,6 +174,7 @@ function App() {
     <div class="app">
       <aside class="sidebar">
         <div class="brand"><div class="logo"><${Icon} name="camera" size=${18} /></div><span>Ljósmyndabókhald</span></div>
+        <label class="year-pick"><span>Ár</span><${YearSelect} /></label>
         <nav>${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} /><span>${r.label}</span></a>`)}</nav>
         <div class="sidebar-foot">
           <${SyncIndicator} />
@@ -182,7 +183,7 @@ function App() {
       </aside>
       <header class="topbar">
         <div class="brand"><div class="logo"><${Icon} name="camera" size=${16} /></div><span>${route === 'stillingar' ? 'Stillingar' : (current || ROUTES[0]).label}</span></div>
-        <div class="row"><${SyncIndicator} /><a class="icon-btn" href="#/stillingar" aria-label="Stillingar"><${Icon} name="gear" /></a></div>
+        <div class="row"><${SyncIndicator} /><${YearSelect} /><a class="icon-btn" href="#/stillingar" aria-label="Stillingar"><${Icon} name="gear" /></a></div>
       </header>
       <main class="main"><${View} /></main>
       <nav class="bottomnav">${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} size=${22} /><span>${r.label}</span></a>`)}</nav>

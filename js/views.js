@@ -18,13 +18,13 @@ export function YearSelect() {
   const { year } = useUI();
   const years = yearsInData(data);
   if (!years.includes(year)) years.push(year);
-  return html`<select class="year-select" value=${year} onChange=${(e) => setYear(Number(e.target.value))} aria-label="Ár">
+  return html`<select class="year-select" title="Veldu ár" value=${year} onChange=${(e) => setYear(Number(e.target.value))} aria-label="Ár">
     ${years.sort((a, b) => b - a).map((y) => html`<option value=${y}>${y}</option>`)}
   </select>`;
 }
 
 function PageHead({ title, children }) {
-  return html`<div class="page-head"><h1>${title}</h1><div class="row">${children}</div></div>`;
+  return html`<div class=${'page-head' + (children ? '' : ' title-only')}><h1>${title}</h1>${children && html`<div class="row">${children}</div>`}</div>`;
 }
 
 function Stat({ label, value, sub, tone, onClick }) {
@@ -49,7 +49,7 @@ export function Dashboard() {
   const upcoming = upcomingGigs(data);
   const attention = attentionItems(data);
   return html`
-    <${PageHead} title="Yfirlit"><${YearSelect} /></${PageHead}>
+    <${PageHead} title="Yfirlit" />
     <div class="quick">
       <button class="primary" onClick=${() => openModal('gig')}><${Icon} name="plus" size=${18} /> Gigg</button>
       <button onClick=${() => openModal('invoice')}><${Icon} name="plus" size=${18} /> Reikningur</button>
@@ -66,7 +66,7 @@ export function Dashboard() {
     </div>
     <div class="two-col">
       <section class="card">
-        <h2>Framundan</h2>
+        <h2>Fram undan</h2>
         ${upcoming.length ? html`<div class="list compact">${upcoming.map((g) => html`<${GigRow} g=${g} data=${data} />`)}</div>`
           : html`<${Empty}>Engin bókuð gigg framundan.</${Empty}>`}
       </section>
@@ -121,7 +121,7 @@ export function Gigs() {
   const yearGigs = data.gigs.filter((g) => yearOf(g.date) === year && g.status !== 'haett');
   const agreed = yearGigs.filter((g) => g.pricing === 'samid');
   return html`
-    <${PageHead} title="Gigg"><${YearSelect} /><button class="primary" onClick=${() => openModal('gig')}><${Icon} name="plus" size=${18} /> Nýtt gigg</button></${PageHead}>
+    <${PageHead} title="Gigg"><button class="primary" onClick=${() => openModal('gig')}><${Icon} name="plus" size=${18} /> Nýtt gigg</button></${PageHead}>
     <div class="toolbar">
       <${Segmented} options=${{ virk: 'Virk', ar: `Árið ${year}`, allt: 'Öll' }} value=${tab} onChange=${setTab} />
       <div class="search"><${Icon} name="search" size=${16} /><input type="search" placeholder="Leita…" value=${q} onInput=${(e) => setQ(e.target.value)} /></div>
@@ -181,7 +181,7 @@ export function Invoices() {
     greitt: { label: 'Greitt', list: paid, sub: `${paid.length} reikn. · útgefnir ${year}` },
   };
   return html`
-    <${PageHead} title="Reikningar"><${YearSelect} /><button class="primary" onClick=${() => openModal('invoice')}><${Icon} name="plus" size=${18} /> Skrá reikning</button></${PageHead}>
+    <${PageHead} title="Reikningar"><button class="primary" onClick=${() => openModal('invoice')}><${Icon} name="plus" size=${18} /> Skrá reikning</button></${PageHead}>
     <p class="muted small">Reikningar eru gefnir út í öðru kerfi – hér er haldið utan um þá.</p>
     <div class="stats three">
       ${Object.entries(cats).map(([k, c]) => html`<button type="button" class=${'stat clickable' + (tab === k ? ' selected' : '')} onClick=${() => setTab(k)}>
@@ -233,7 +233,7 @@ export function Expenses() {
   const byCat = {};
   all.forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + expenseCost(e)));
   return html`
-    <${PageHead} title="Kostnaður"><${YearSelect} /><button class="primary" onClick=${() => openModal('expense')}><${Icon} name="plus" size=${18} /> Skrá kostnað</button></${PageHead}>
+    <${PageHead} title="Kostnaður"><button class="primary" onClick=${() => openModal('expense')}><${Icon} name="plus" size=${18} /> Skrá kostnað</button></${PageHead}>
     <div class="stats">
       <${Stat} label="Kostnaður án VSK" value=${kr(sum(all, (e) => e.net))} />
       <${Stat} label="Frádráttarbær innskattur" value=${kr(sum(all, (e) => e.deductibleVat))} />
@@ -318,7 +318,7 @@ export function Purchases() {
         <section class="card"><h2>Eftir forgangi <small class="muted">(virkt, m. VSK)</small></h2><${Bars} rows=${byPrio} /></section>
         ${Object.keys(byCatMap).length > 0 && html`<section class="card"><h2>Eftir flokkum</h2><${Bars} rows=${Object.entries(byCatMap).sort((a, b) => b[1] - a[1])} /></section>`}
         <section class="card">
-          <div class="section-head"><h2>Samanburður ${year}</h2><${YearSelect} /></div>
+          <h2>Samanburður við árið ${year}</h2>
           <div class="kv">
             <div><span>Tekjur án VSK</span><strong>${kr(r.revenueNet)}</strong></div>
             <div><span>Greiðslur mótteknar</span><strong>${kr(r.received)}</strong></div>
@@ -354,7 +354,7 @@ export function Accounting() {
     setBusy('');
   };
   return html`
-    <${PageHead} title="Bókhald"><${YearSelect} /></${PageHead}>
+    <${PageHead} title="Bókhald" />
     <p class="muted small">Yfirlit til að halda utan um fjármálin og undirbúa gögn fyrir bókara – ekki formlegt bókhald.</p>
     <div class="toolbar">
       <${Segmented} options=${{ year: 'Allt árið', vat: 'VSK-tímabil', month: 'Mánuður' }} value=${kind} onChange=${(k) => { setKind(k); setN(k === 'month' ? new Date().getMonth() + 1 : Math.ceil((new Date().getMonth() + 1) / 2)); }} />

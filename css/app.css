@@ -320,3 +320,14 @@ details summary { cursor: pointer; color: var(--accent); margin-top: 16px; font-
 .swatch { display: flex; height: 22px; width: 100%; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
 .swatch span { flex: 1; }
 .palette small { color: var(--muted); font-size: 12px; }
+/* year selector in sidebar / topbar */
+.year-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 0 10px; color: var(--muted); font-size: 13px; font-weight: 550; }
+.year-pick .year-select { width: auto; min-height: 34px; padding: 4px 8px; }
+.topbar .year-select { min-height: 34px; min-width: 0; padding: 4px 6px; font-size: 15px; }
+.page-head { min-height: 38px; }
+@media (max-width: 760px) {
+  .page-head.title-only { display: none; }
+  .page-head { margin-bottom: 12px; min-height: 0; }
+  .topbar .row { flex-wrap: nowrap; gap: 6px; }
+  .topbar .sync span { display: none; }
+}
