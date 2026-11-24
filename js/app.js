@@ -32,6 +32,19 @@ function applyTheme(t) {
 }
 applyTheme(localStorage.getItem('theme'));
 
+export const PALETTES = [
+  { id: 'rokkur', name: 'Rökkur', desc: 'Blár, fjólublár og appelsínugulur', colors: ['#2f5fd0', '#5b45c2', '#e8682a', '#f6f5fa'] },
+  { id: 'sjor', name: 'Sjór', desc: 'Dökkgrænblár', colors: ['#1f5f5b', '#e3efed', '#f6f6f4', '#ffffff'] },
+  { id: 'blar', name: 'Blár', desc: 'Dökkblár og svalur', colors: ['#2d4f86', '#e3eaf5', '#f4f6f9', '#ffffff'] },
+  { id: 'ploma', name: 'Plóma', desc: 'Djúpur fjólublár', colors: ['#6b3a6e', '#f0e5f0', '#f7f5f7', '#ffffff'] },
+  { id: 'sandur', name: 'Sandur', desc: 'Hlýr, terrakotta', colors: ['#b0552f', '#f6e6dc', '#f7f3ee', '#fffdfa'] },
+  { id: 'grafit', name: 'Grafít', desc: 'Svart, hvítt og grátt', colors: ['#1a1a1a', '#6e6e6e', '#efefef', '#ffffff'] },
+];
+function applyPalette(id) {
+  document.documentElement.dataset.palette = id;
+  try { localStorage.setItem('palette', id); } catch { /* ignore */ }
+}
+
 function SyncIndicator() {
   useStore();
   const s = store.getSync();
@@ -67,8 +80,15 @@ function Settings() {
             <${DropboxConnect} />`}
         </section>
         <section class="card">
-          <h2>Útlit</h2>
+          <h2>Litaþema</h2>
+          <div class="palettes">${PALETTES.map((p) => html`
+            <button type="button" class=${'palette' + ((s.palette || 'rokkur') === p.id ? ' on' : '')} onClick=${() => { applyPalette(p.id); store.updateSettings({ palette: p.id }); }}>
+              <span class="swatch">${p.colors.map((c) => html`<span style=${{ background: c }}></span>`)}</span>
+              <strong>${p.name}</strong><small>${p.desc}</small>
+            </button>`)}</div>
+          <h3>Birta</h3>
           <${Segmented} options=${{ auto: 'Sjálfvirkt', light: 'Ljóst', dark: 'Dökkt' }} value=${theme} onChange=${(t) => { setTheme(t); localStorage.setItem('theme', t); applyTheme(t); }} />
+          <p class="hint">Litaþemað fylgir gögnunum (sama í síma og tölvu). Birtan er stillt fyrir hvert tæki.</p>
         </section>
         <section class="card">
           <h2>Sjálfgefin gildi</h2>
@@ -142,7 +162,9 @@ function Welcome() {
 }
 
 function App() {
-  useStore();
+  const data = useStore();
+  const palette = data.settings.palette || 'rokkur';
+  useEffect(() => applyPalette(palette), [palette]);
   const { modals } = useUI();
   const route = useRoute();
   if (!store.getMode()) return html`<${Welcome} />`;
