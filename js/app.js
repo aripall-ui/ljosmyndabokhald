@@ -1,0 +1,171 @@
+import { html, render, useState, useEffect } from '../vendor/preact-htm.js';
+import * as store from './store.js';
+import * as dbx from './dropbox.js';
+import { useStore, useUI, openModal, Icon, Field, Segmented, Empty } from './components.js';
+import { MODALS } from './forms.js';
+import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting } from './views.js';
+
+const ROUTES = [
+  { id: 'yfirlit', label: 'Yfirlit', icon: 'home', view: Dashboard },
+  { id: 'gigg', label: 'Gigg', icon: 'camera', view: Gigs },
+  { id: 'reikningar', label: 'Reikningar', icon: 'invoice', view: Invoices },
+  { id: 'kostnadur', label: 'Kostnaður', icon: 'receipt', view: Expenses },
+  { id: 'innkaup', label: 'Innkaup', icon: 'cart', view: Purchases },
+  { id: 'bokhald', label: 'Bókhald', icon: 'chart', view: Accounting },
+];
+
+function useRoute() {
+  const get = () => location.hash.replace(/^#\/?/, '') || 'yfirlit';
+  const [r, setR] = useState(get);
+  useEffect(() => {
+    const on = () => { setR(get()); window.scrollTo(0, 0); };
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return r;
+}
+
+// ---------- theme ----------
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+}
+applyTheme(localStorage.getItem('theme'));
+
+function SyncIndicator() {
+  useStore();
+  const s = store.getSync();
+  if (store.getMode() !== 'dropbox') return html`<a class="sync local" href="#/stillingar" title="Gögn vistuð í þessum vafra">Aðeins í þessum vafra</a>`;
+  const map = { idle: ['ok', 'Vistað í Dropbox'], saving: ['busy', s.message || 'Vistar…'], error: ['err', s.message], offline: ['warn', s.message], auth: ['err', s.message] };
+  const [cls, text] = map[s.status] || map.idle;
+  return html`<a class=${'sync ' + cls} href="#/stillingar" title=${text}><${Icon} name="cloud" size=${16} /><span>${text}</span></a>`;
+}
+
+// ---------- settings ----------
+function Settings() {
+  const data = useStore();
+  const s = data.settings;
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'auto');
+  const [cats, setCats] = useState(s.categories.join('\n'));
+  const [ecats, setEcats] = useState(s.expenseCategories.join('\n'));
+  const [name, setName] = useState('');
+  useEffect(() => { if (store.getMode() === 'dropbox' && dbx.isConnected()) dbx.accountName().then(setName).catch(() => {}); }, []);
+  const lines = (t) => t.split('\n').map((x) => x.trim()).filter(Boolean);
+  const sync = store.getSync();
+  return html`
+    <div class="page-head"><h1>Stillingar</h1></div>
+    <div class="two-col">
+      <div class="stack">
+        <section class="card">
+          <h2>Gagnageymsla</h2>
+          ${store.getMode() === 'dropbox' ? html`
+            ${dbx.isConnected() && sync.status !== 'auth' ? html`<p>Tengt við Dropbox${name ? ' sem ' + name : ''}. Gögn og skjöl eru í möppunni <strong>Dropbox/Apps/…</strong> sem appið á.</p>
+              <div class="row"><button onClick=${() => store.refresh()}>Samstilla núna</button>
+              <button class="ghost danger" onClick=${() => confirm('Aftengja Dropbox á þessu tæki?') && store.disconnectDropbox()}>Aftengja</button></div>`
+              : html`<p class="red">Ekki tengt – skráðu þig inn aftur.</p><button class="primary" onClick=${() => store.connectDropbox()}>Tengjast Dropbox</button>`}
+          ` : html`<p>Gögnin eru aðeins vistuð í <strong>þessum vafra</strong>. Tengdu Dropbox til að fá öryggisafrit og aðgang úr símanum.</p>
+            <${DropboxConnect} />`}
+        </section>
+        <section class="card">
+          <h2>Útlit</h2>
+          <${Segmented} options=${{ auto: 'Sjálfvirkt', light: 'Ljóst', dark: 'Dökkt' }} value=${theme} onChange=${(t) => { setTheme(t); localStorage.setItem('theme', t); applyTheme(t); }} />
+        </section>
+        <section class="card">
+          <h2>Sjálfgefin gildi</h2>
+          <div class="grid">
+            <${Field} label="VSK-hlutfall (%)"><input type="number" value=${s.vatRate} onChange=${(e) => store.updateSettings({ vatRate: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="Greiðslufrestur (dagar)"><input type="number" value=${s.dueDays} onChange=${(e) => store.updateSettings({ dueDays: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="Tímagjald í reiknivél (kr.)"><input type="number" value=${s.hourlyRate} onChange=${(e) => store.updateSettings({ hourlyRate: Number(e.target.value) || 0 })} /></${Field}>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Afrit</h2>
+          <p class="muted">Sæktu öll gögn sem JSON-skrá, eða lestu inn afrit (sameinað við núverandi gögn).</p>
+          <div class="row">
+            <button onClick=${() => store.exportJSON()}><${Icon} name="download" size=${16} /> Sækja afrit</button>
+            <label class="btn ghost">Lesa inn afrit<input type="file" accept="application/json" hidden onChange=${async (e) => { const f = e.target.files[0]; if (f) { try { await store.importJSON(f); alert('Afrit lesið inn.'); } catch (err) { alert('Ógild skrá: ' + err.message); } } }} /></label>
+          </div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="card">
+          <div class="section-head"><h2>Viðskiptavinir</h2><button class="ghost small" onClick=${() => openModal('client')}><${Icon} name="plus" size=${14} /> Nýr</button></div>
+          ${data.clients.length ? html`<div class="list compact">${data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'is')).map((c) => html`
+            <button type="button" class="item" onClick=${() => openModal('client', { id: c.id })}>
+              <div class="item-main"><strong>${c.name}</strong><span class="muted">${[c.kennitala, c.email, c.phone].filter(Boolean).join(' · ') || 'Engar nánari upplýsingar'}</span></div>
+              <span class="muted small">${data.gigs.filter((g) => g.clientId === c.id).length} gigg</span>
+            </button>`)}</div>` : html`<${Empty}>Viðskiptavinir verða til sjálfkrafa þegar þú skráir gigg eða reikninga.</${Empty}>`}
+        </section>
+        <section class="card">
+          <h2>Flokkar</h2>
+          <div class="grid">
+            <${Field} label="Ljósmyndaflokkar (einn í línu)"><textarea rows="9" value=${cats} onInput=${(e) => setCats(e.target.value)} onBlur=${() => store.updateSettings({ categories: lines(cats) })}></textarea></${Field}>
+            <${Field} label="Kostnaðarflokkar (einn í línu)"><textarea rows="9" value=${ecats} onInput=${(e) => setEcats(e.target.value)} onBlur=${() => store.updateSettings({ expenseCategories: lines(ecats) })}></textarea></${Field}>
+          </div>
+        </section>
+      </div>
+    </div>`;
+}
+
+function DropboxConnect() {
+  const [key, setKey] = useState(dbx.appKey());
+  const preset = !!(window.APP_CONFIG && window.APP_CONFIG.dropboxAppKey);
+  if (!location.protocol.startsWith('http')) return html`<p class="hint">Dropbox virkar aðeins þegar appið er opnað af vefslóð (ekki skrá).</p>`;
+  return html`<div class="stack-sm">
+    ${!preset && html`<${Field} label="Dropbox App key" hint="Úr Dropbox App Console (sjá leiðbeiningar)"><input type="text" value=${key} onInput=${(e) => setKey(e.target.value)} /></${Field}>`}
+    <button class="primary" disabled=${!key} onClick=${() => store.connectDropbox(key)}><${Icon} name="cloud" size=${18} /> Tengjast Dropbox</button>
+  </div>`;
+}
+
+// ---------- first run ----------
+function Welcome() {
+  return html`<div class="welcome">
+    <div class="welcome-card card">
+      <div class="logo big"><${Icon} name="camera" size=${28} /></div>
+      <h1>Velkomin(n)</h1>
+      <p class="muted">Einfalt utanumhald fyrir ljósmyndareksturinn – gigg, reikningar, kostnaður og innkaup.</p>
+      <h2>Hvar á að geyma gögnin?</h2>
+      <div class="choice">
+        <div>
+          <h3>Dropbox <span class="badge green">Mælt með</span></h3>
+          <p class="muted small">Aðgangur úr tölvu og síma, öryggisafrit og skjöl í Dropbox-möppu. Innskráning með Dropbox-aðgangi.</p>
+          <${DropboxConnect} />
+        </div>
+        <div>
+          <h3>Bara í þessum vafra</h3>
+          <p class="muted small">Til að prófa. Hægt að tengja Dropbox síðar og færa gögnin yfir.</p>
+          <button onClick=${() => store.useLocalMode()}>Byrja án Dropbox</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function App() {
+  useStore();
+  const { modals } = useUI();
+  const route = useRoute();
+  if (!store.getMode()) return html`<${Welcome} />`;
+  const current = ROUTES.find((r) => r.id === route);
+  const View = route === 'stillingar' ? Settings : (current || ROUTES[0]).view;
+  return html`
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand"><div class="logo"><${Icon} name="camera" size=${18} /></div><span>Ljósmyndabókhald</span></div>
+        <nav>${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} /><span>${r.label}</span></a>`)}</nav>
+        <div class="sidebar-foot">
+          <${SyncIndicator} />
+          <a href="#/stillingar" class=${route === 'stillingar' ? 'active' : ''}><${Icon} name="gear" /><span>Stillingar</span></a>
+        </div>
+      </aside>
+      <header class="topbar">
+        <div class="brand"><div class="logo"><${Icon} name="camera" size=${16} /></div><span>${route === 'stillingar' ? 'Stillingar' : (current || ROUTES[0]).label}</span></div>
+        <div class="row"><${SyncIndicator} /><a class="icon-btn" href="#/stillingar" aria-label="Stillingar"><${Icon} name="gear" /></a></div>
+      </header>
+      <main class="main"><${View} /></main>
+      <nav class="bottomnav">${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} size=${22} /><span>${r.label}</span></a>`)}</nav>
+      ${modals.map((m) => { const M = MODALS[m.type]; return html`<${M} key=${m.key} ...${m.props} />`; })}
+    </div>`;
+}
+
+store.init().finally(() => render(html`<${App} />`, document.getElementById('app')));
