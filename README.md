@@ -39,3 +39,6 @@ Dropbox geymir eldri útgáfur af `data.json` sjálfkrafa. Einnig má sækja afr
 
 ## Tæknilegt
 Preact + htm og JSZip eru í `vendor/` – ekkert build-skref. Til að keyra staðbundið: `python3 -m http.server` og opna `http://localhost:8000/`.
+
+## Útgáfur
+Keyrðu `python3 tools/version.py` áður en breytingar eru sendar. Það stimplar `index.html` svo vafrar sæki alltaf nýjustu skrárnar.
