@@ -1,6 +1,7 @@
 import { html, render, useState, useEffect } from '../vendor/preact-htm.js';
 import * as store from './store.js';
 import * as dbx from './dropbox.js';
+import { MONTHS } from './util.js';
 import { useStore, useUI, openModal, Icon, Field, Segmented, Empty, Toasts, confirmAction, notify, MoneyInput } from './components.js';
 import { MODALS } from './forms.js';
 import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting, YearSelect } from './views.js';
@@ -55,6 +56,14 @@ function SyncIndicator() {
 }
 
 // ---------- settings ----------
+function monthOptions() {
+  const out = [], now = new Date();
+  for (let i = -3; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push([`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, `${MONTHS[d.getMonth()]} ${d.getFullYear()}`]);
+  }
+  return out;
+}
 function Settings() {
   const data = useStore();
   const s = data.settings;
@@ -105,7 +114,13 @@ function Settings() {
           <div class="grid">
             <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þar sem þú átt lögheimili. Reykjavík: 14,97%"><input type="text" inputmode="decimal" value=${String(s.utsvar ?? 14.97).replace('.', ',')} onChange=${(e) => { const v = Number(String(e.target.value).replace(',', '.')); store.updateSettings({ utsvar: v > 0 && v < 30 ? v : 14.97 }); }} /></${Field}>
             <${Field} label="Aðrar launatekjur á ári" hint="Laun frá vinnuveitanda, fyrir skatt. Hefur áhrif á skattþrep"><${MoneyInput} value=${s.otherIncome || 0} step=${1000000} onChange=${(v) => store.updateSettings({ otherIncome: v || 0 })} /></${Field}>
-            <${Field} label="Reiknað endurgjald á ári" hint="Autt = allur hagnaður (varfærið). Bókarinn ákveður þessa tölu"><${MoneyInput} value=${s.ownPay ?? ''} allowEmpty placeholder="Allur hagnaður" step=${100000} onChange=${(v) => store.updateSettings({ ownPay: v })} /></${Field}>
+            <${Field} label="Reiknað endurgjald á mánuði" hint="Upphæðin sem þú valdir hjá Skattinum. Autt = allur hagnaður (varfærið)"><${MoneyInput} value=${s.ownPayMonthly ?? ''} allowEmpty placeholder="Allur hagnaður" step=${10000} onChange=${(v) => store.updateSettings({ ownPayMonthly: v })} /></${Field}>
+            <${Field} label="Reiknað endurgjald frá" hint="Fyrsti mánuðurinn sem það reiknast af">
+              <select value=${s.ownPayFrom || ''} onChange=${(e) => store.updateSettings({ ownPayFrom: e.target.value })}>
+                <option value="">Byrjun árs</option>
+                ${monthOptions().map(([v, l]) => html`<option value=${v}>${l}</option>`)}
+              </select>
+            </${Field}>
             <${Field} label="Skattur þegar greiddur á árinu" hint="T.d. staðgreiðsla af reiknuðu endurgjaldi"><${MoneyInput} value=${s.taxPrepaid || 0} step=${10000} onChange=${(v) => store.updateSettings({ taxPrepaid: v || 0 })} /></${Field}>
           </div>
           <label class="check"><input type="checkbox" checked=${s.pensionOn !== false} onChange=${(e) => store.updateSettings({ pensionOn: e.target.checked })} /> Reikna lífeyrissjóð (15,5%) af reiknuðu endurgjaldi</label>

@@ -48,6 +48,15 @@ export function vatDueDate(year, n) {
   return `${y}-${String(mm).padStart(2, '0')}-05`;
 }
 
+// Months of reiknað endurgjald in a year, from start month 'YYYY-MM' (inclusive)
+export function ownPayMonths(year, from) {
+  const [fy, fm] = (from || `${year}-01`).split('-').map(Number);
+  const startM = fy < year ? 1 : fy > year ? 13 : fm;
+  const now = new Date();
+  const curM = year < now.getFullYear() ? 12 : year > now.getFullYear() ? 0 : now.getMonth() + 1;
+  return { year: Math.max(0, 12 - startM + 1), soFar: Math.max(0, curM - startM + 1) };
+}
+
 export function taxEstimate(data, year) {
   const s = data.settings;
   const p = params(year);
@@ -56,10 +65,12 @@ export function taxEstimate(data, year) {
   const profit = r.revenueNet - r.cost; // so far this year
   const projected = frac > 0 ? profit / frac : 0; // whole-year projection
 
-  // Reiknað endurgjald: the yearly amount from settings, otherwise the whole profit (cautious estimate)
-  const ownPay = s.ownPay === '' || s.ownPay == null ? null : Number(s.ownPay);
+  // Reiknað endurgjald: monthly amount from a start month; if not set, the whole profit (cautious estimate)
+  const monthly = s.ownPayMonthly === '' || s.ownPayMonthly == null ? null : Number(s.ownPayMonthly);
+  const months = ownPayMonths(year, s.ownPayFrom);
   const calc = (prof, share) => {
-    const R = Math.max(0, Math.min(ownPay == null ? prof : ownPay * share, prof));
+    const m = share === 1 ? months.year : months.soFar;
+    const R = Math.max(0, Math.min(monthly == null ? prof : monthly * m, prof));
     const tg = R * p.tryggingagjald / 100;
     const pension = s.pensionOn === false ? 0 : R * p.pension / 100;
     const base = Math.max(0, prof - tg - pension); // tryggingagjald and pension are deductible
@@ -90,6 +101,13 @@ export function taxEstimate(data, year) {
     full: { R: Math.round(full.R), base: Math.round(full.base), tg: Math.round(full.tg), pension: Math.round(full.pension), incomeTax: Math.round(taxYear) },
     vat: { periods: vatPeriods, toPay: Math.max(0, vatToPay), next: nextVat },
     setAside: Math.max(0, directNow - prepaid) + pensionNow + Math.max(0, vatToPay),
+    // Monthly claim from Skatturinn on reiknað endurgjald: withholding at the marginal rate + tryggingagjald
+    monthly: monthly ? {
+      amount: monthly, months,
+      tax: Math.round(monthly * (incomeTax(other + monthly * 12, year, s.utsvar) - incomeTax(other, year, s.utsvar)) / (monthly * 12)),
+      tg: Math.round(monthly * p.tryggingagjald / 100),
+      pension: Math.round(monthly * p.pension / 100),
+    } : null,
     params: p,
   };
 }

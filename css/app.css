@@ -356,3 +356,6 @@ button.primary.danger-fill { background: var(--red); border-color: var(--red); c
 .money .steps button { flex: 1; min-height: 0; padding: 0 7px; font-size: 9px; line-height: 1; border-radius: 5px; color: var(--muted); background: var(--surface-2); border: 0; }
 .money .steps button:hover { color: var(--text); }
 .grid + .check { margin-top: 14px; }
+.monthly-claim { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+.monthly-claim > div { display: flex; flex-direction: column; gap: 2px; }
+.monthly-claim .muted { font-size: 13px; }

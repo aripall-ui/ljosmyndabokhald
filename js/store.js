@@ -14,7 +14,8 @@ export const DEFAULT_SETTINGS = {
   vatExemptCategories: ['Tónlist'],
   utsvar: 14.97, // Reykjavík
   otherIncome: 0,
-  ownPay: '',
+  ownPayMonthly: '',
+  ownPayFrom: '',
   pensionOn: true,
   taxPrepaid: 0,
   hourlyRate: 15000,
@@ -152,9 +153,20 @@ function handleError(e) {
 
 // One-time data updates after the app changes (run after the latest data has loaded)
 function migrate() {
+  if (data.settings.taxV === 1) {
+    const st = data.settings;
+    const patch = { taxV: 2 };
+    if (st.ownPay !== '' && st.ownPay != null && (st.ownPayMonthly === '' || st.ownPayMonthly == null)) { patch.ownPayMonthly = Math.round(Number(st.ownPay) / 12); patch.ownPayFrom = `${new Date().getFullYear()}-01`; }
+    updateSettings(patch);
+  }
+  if (data.settings.taxV === 2) {
+    const st = data.settings;
+    updateSettings({ taxV: 3, ...(st.ownPayMonthly === '' || st.ownPayMonthly == null ? { ownPayMonthly: 100000, ownPayFrom: '2026-10' } : {}) });
+  }
   if (!data.settings.taxV) {
     const u = data.settings.utsvar;
-    updateSettings({ taxV: 1, ...(u == null || u === 14.94 ? { utsvar: 14.97 } : {}) });
+    updateSettings({ taxV: 2, ...(u == null || u === 14.94 ? { utsvar: 14.97 } : {}) });
+    migrate();
   }
 }
 

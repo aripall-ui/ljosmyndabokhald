@@ -430,6 +430,11 @@ function Taxes({ data, year }) {
       <strong>${kr(t.setAside)}</strong>
       <small>miðað við skráðar tekjur og kostnað${current ? ' í dag' : ''}: tekjuskattur, útsvar, tryggingagjald${s.pensionOn === false ? '' : ', lífeyrissjóður'} og ógreiddur VSK${t.prepaid ? ', að frádregnu því sem er þegar greitt' : ''}</small>
     </div>
+    ${t.monthly && html`<div class="monthly-claim">
+      <div><strong>Mánaðarleg krafa frá Skattinum: ${kr(t.monthly.tax + t.monthly.tg)}</strong>
+        <span class="muted">Staðgreiðsla ${kr(t.monthly.tax)} + tryggingagjald ${kr(t.monthly.tg)} af ${kr(t.monthly.amount)} reiknuðu endurgjaldi. Gjalddagi 15. næsta mánaðar.${s.pensionOn === false ? '' : ` Auk þess ${kr(t.monthly.pension)} í lífeyrissjóð.`}</span></div>
+      <span class="hint">Skráðu greiddar kröfur í Stillingum („Skattur þegar greiddur“), þá lækkar talan hér að ofan.</span>
+    </div>`}
     <div class="two-col tight">
       <div>
         <h3>Tekjuskattur og gjöld</h3>
@@ -437,7 +442,7 @@ function Taxes({ data, year }) {
           <thead><tr><th></th><th>${current ? 'Hingað til' : 'Árið'}</th>${current && html`<th>Áætlun fyrir árið</th>`}</tr></thead>
           <tbody>
             ${row('Hagnaður (tekjur − kostnaður)', t.profit, t.projected)}
-            ${row('Reiknað endurgjald', t.now.R, t.full.R)}
+            ${row(t.monthly ? `Reiknað endurgjald (${t.monthly.months.year} mán. × ${kr(t.monthly.amount)})` : 'Reiknað endurgjald', t.now.R, t.full.R)}
             ${row(`Tryggingagjald ${String(t.params.tryggingagjald).replace('.', ',')}%`, t.now.tg, t.full.tg)}
             ${s.pensionOn !== false && row(`Lífeyrissjóður ${String(t.params.pension).replace('.', ',')}%`, t.now.pension, t.full.pension)}
             ${row(`Tekjuskattur og útsvar (${pct(t.effRate)})`, t.now.incomeTax, t.full.incomeTax)}
@@ -445,7 +450,7 @@ function Taxes({ data, year }) {
           </tbody>
           <tfoot>${row('Samtals', Math.max(0, t.now.tg + t.now.pension + t.now.incomeTax - t.prepaid), t.full.tg + t.full.pension + t.full.incomeTax)}</tfoot>
         </table></div>
-        <p class="hint">Skattlagt í álagningu næsta sumar. Hlutfallið er jaðarskattur ofan á ${s.otherIncome ? `aðrar launatekjur (${kr(s.otherIncome)})` : 'engar aðrar tekjur'} með útsvari ${String(s.utsvar || 14.97).replace('.', ',')}%. ${s.ownPay === '' || s.ownPay == null ? 'Allur hagnaður reiknaður sem reiknað endurgjald (varfærið).' : ''}</p>
+        <p class="hint">Skattlagt í álagningu næsta sumar. Hlutfallið er jaðarskattur ofan á ${s.otherIncome ? `aðrar launatekjur (${kr(s.otherIncome)})` : 'engar aðrar tekjur'} með útsvari ${String(s.utsvar || 14.97).replace('.', ',')}%. ${t.monthly ? 'Tryggingagjald og lífeyrir reiknast af reiknuðu endurgjaldi, tekjuskattur af öllum hagnaði.' : 'Allur hagnaður reiknaður sem reiknað endurgjald (varfærið).'}</p>
       </div>
       <div>
         <h3>Virðisaukaskattur</h3>
