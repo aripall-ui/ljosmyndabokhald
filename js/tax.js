@@ -1,7 +1,7 @@
 // Estimated taxes for a sole trader in Iceland (estimate, not an assessment).
 // Sources: Skatturinn – "Skatthlutfall, skattþrep og persónuafsláttur ársins 2026" and "Helstu tölur og prósentur 2026".
-import { summarize } from './calc.js';
-import { periodRange, todayISO } from './util.js';
+import { summarize, isVatRegistered } from './calc.js';
+import { periodRange, todayISO, calcVat } from './util.js';
 
 export const TAX_YEARS = {
   2026: {
@@ -110,4 +110,24 @@ export function taxEstimate(data, year) {
     } : null,
     params: p,
   };
+}
+
+// How much a purchase lowers what you owe: income tax (and tryggingagjald if all profit is reiknað endurgjald)
+// on the cost excl. deductible VAT, plus the input VAT deducted from the next VAT return.
+// items: [{ amount, inclVat, vatRate }] bought today.
+export function purchaseTaxEffect(data, year, items) {
+  const today = todayISO();
+  const s = data.settings;
+  const extra = items.map((it, i) => {
+    const v = calcVat(it.amount, it.vatRate, it.inclVat);
+    const ded = isVatRegistered(s, today) ? v.vat : 0;
+    return { id: 'whatif-' + i, date: today, ...v, deductibleVat: ded };
+  });
+  const before = taxEstimate(data, year);
+  const after = taxEstimate({ ...data, expenses: [...data.expenses, ...extra] }, year);
+  const gross = extra.reduce((a, e) => a + e.gross, 0);
+  const vatBack = extra.reduce((a, e) => a + e.deductibleVat, 0);
+  const incomeTax = (before.now.incomeTax + before.now.tg) - (after.now.incomeTax + after.now.tg);
+  const saving = Math.max(0, incomeTax) + vatBack;
+  return { gross, vatBack, incomeTax: Math.max(0, incomeTax), saving, realCost: gross - saving, before: before.setAside, after: Math.max(0, before.setAside - saving) };
 }

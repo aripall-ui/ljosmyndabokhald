@@ -6,6 +6,7 @@ import {
   closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal,
 } from './components.js';
 import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
+import { purchaseTaxEffect } from './tax.js';
 import { GIG_STATUS, PRICING, INV_STATUS, INV_LABEL, CONV_TYPE, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts, vatRateOn, isVatRegistered } from './calc.js';
 
 const num = (v) => (v === '' || v == null ? '' : Number(v));
@@ -407,12 +408,22 @@ export function PurchaseForm({ id }) {
       <${Field} label="Forgangur" full><${Segmented} options=${PRIORITY} value=${f.priority} onChange=${(k) => set({ priority: k })} /></${Field}>
       <${PriceFields} amount=${f.estPrice} inclVat=${f.inclVat} vatRate=${f.vatRate} onChange=${(p) => set(p.amount !== undefined ? { estPrice: p.amount } : p)} label="Áætlað verð" />
       <div class="full"><${VatSummary} ...${v} /></div>
+      ${f.estPrice > 0 && html`<${TaxEffect} amount=${f.estPrice} inclVat=${f.inclVat} vatRate=${f.vatRate} />`}
       <${Field} label="Hlekkur á vöru / verslun" full><input type="url" value=${f.link} placeholder="https://" onInput=${(e) => set({ link: e.target.value })} /></${Field}>
       <${Field} label="Af hverju?" full><input type="text" value=${f.reason} placeholder="t.d. betri í lítilli birtu í brúðkaupum" onInput=${(e) => set({ reason: e.target.value })} /></${Field}>
       <${Field} label="Áætluð kaup (valfrjálst)"><input type="date" value=${f.plannedDate} onInput=${(e) => set({ plannedDate: e.target.value })} /></${Field}>
       <${Field} label="Athugasemdir" full><textarea rows="2" value=${f.notes} onInput=${(e) => set({ notes: e.target.value })}></textarea></${Field}>
     </div>
   </${Modal}>`;
+}
+
+// What buying this today does to taxes
+function TaxEffect({ amount, inclVat, vatRate }) {
+  const fx = purchaseTaxEffect(store.getData(), new Date().getFullYear(), [{ amount, inclVat, vatRate }]);
+  return html`<div class="full tax-effect">
+    <div><span>Ef keypt í dag lækka skattarnir um</span><strong>${kr(fx.saving)}</strong></div>
+    <small class="muted">VSK til baka ${kr(fx.vatBack)} + lægri tekjuskattur ${kr(fx.incomeTax)} · raunkostnaður eftir skatta <strong>${kr(fx.realCost)}</strong> · til hliðar fyrir skatta fer úr ${kr(fx.before)} í ${kr(fx.after)}</small>
+  </div>`;
 }
 
 // Mark purchase as bought -> creates an expense

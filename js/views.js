@@ -9,7 +9,7 @@ import {
   summarize, yearsInData, upcomingGigs, attentionItems, gigAmounts, isOverdue, expenseCost,
 } from './calc.js';
 import { exportForAccountant } from './export.js';
-import { taxEstimate } from './tax.js';
+import { taxEstimate, purchaseTaxEffect } from './tax.js';
 
 const STATUS_TONE = { bokad: 'blue', vinnsla: 'amber', afhent: 'purple', lokid: 'green', haett: 'grey' };
 const INV_TONE = { osent: 'amber', sent: 'blue', greitt: 'green', nidurfellt: 'grey' };
@@ -298,7 +298,10 @@ export function Purchases() {
   active.forEach((p) => (byCatMap[p.category] = (byCatMap[p.category] || 0) + amt(p).gross));
   const list = items.filter((p) => p.status === 'listi');
   const r = summarize(data, periodRange({ year, kind: 'year' }));
-  const listCost = sum(list, (p) => { const v = amt(p); return v.gross - v.vat; }); // effective cost assuming deductible VAT
+  const thisYear = new Date().getFullYear();
+  const fx = (ps) => purchaseTaxEffect(data, thisYear, ps.map((p) => ({ amount: p.estPrice, inclVat: p.inclVat, vatRate: p.vatRate })));
+  const listFx = fx(list);
+  const listCost = listFx.gross - listFx.vatBack; // cost excl. deductible VAT
   const activeCost = sum(active, (p) => amt(p).net);
 
   return html`
@@ -320,6 +323,7 @@ export function Purchases() {
               ${p.link && html`<a class="badge link" href=${p.link} target="_blank" rel="noopener" onClick=${(e) => e.stopPropagation()}><${Icon} name="link" size=${12} /> Hlekkur</a>`}
             </span></div>
           <div class="item-amount">${kr(v.gross)}<small>${v.vat ? kr(v.net) + ' án VSK' : 'enginn VSK'}</small>
+            ${ACTIVE_PURCHASE.includes(p.status) && html`<small class="after-tax" title="Verð að frádregnum VSK sem fæst til baka og lægri tekjuskatti">≈ ${kr(fx([p]).realCost)} eftir skatta</small>`}
             ${ACTIVE_PURCHASE.includes(p.status) && html`<div class="row end"><button type="button" class="ghost small" onClick=${(e) => { e.stopPropagation(); openModal('buy', { id: p.id }); }}><${Icon} name="check" size=${14} /> Keypt</button></div>`}
             ${p.status === 'keypt' && p.expenseId && html`<div class="row end"><button type="button" class="link-btn small" onClick=${(e) => { e.stopPropagation(); openModal('expense', { id: p.expenseId }); }}>Sjá kostnað</button></div>`}
           </div>
@@ -335,11 +339,23 @@ export function Purchases() {
             <div><span>Greiðslur mótteknar</span><strong>${kr(r.received)}</strong></div>
             <div><span>Kostnaður</span><strong>${kr(r.cost)}</strong></div>
             <div><span>Tekjur umfram kostnað</span><strong>${kr(r.result)}</strong></div>
-            <div class="sep"><span>Innkaupalisti (raunkostn.*)</span><strong>${kr(listCost)}</strong></div>
+            <div class="sep"><span>Innkaupalisti án VSK</span><strong>${kr(listCost)}</strong></div>
             <div><span>Sem hlutfall af tekjum</span><strong>${r.revenueNet ? Math.round((listCost / r.revenueNet) * 100) + '%' : '–'}</strong></div>
             <div class="hl"><span>Niðurstaða ef allt á lista er keypt</span><strong class=${r.result - listCost < 0 ? 'red' : ''}>${kr(r.result - listCost)}</strong></div>
           </div>
-          <p class="hint">* Verð án VSK, miðað við að innskattur sé frádráttarbær.</p>
+        </section>
+        <section class="card">
+          <h2>Skattaáhrif ef allt á listanum er keypt í dag</h2>
+          ${list.length ? html`<div class="kv">
+            <div><span>Verð með VSK</span><strong>${kr(listFx.gross)}</strong></div>
+            <div><span>VSK sem fæst til baka</span><strong>−${kr(listFx.vatBack)}</strong></div>
+            <div><span>Lægri tekjuskattur${data.settings.ownPayMonthly ? '' : ' og tryggingagjald'}</span><strong>−${kr(listFx.incomeTax)}</strong></div>
+            <div class="hl"><span>Raunkostnaður eftir skatta</span><strong>${kr(listFx.realCost)}</strong></div>
+            <div class="sep"><span>Til hliðar fyrir skatta núna</span><strong>${kr(listFx.before)}</strong></div>
+            <div class="hl"><span>Til hliðar eftir kaupin</span><strong>${kr(listFx.after)}</strong></div>
+          </div>
+          <p class="hint">Miðað við skattaáætlunina í Bókhaldi (${thisYear}). Dýr búnaður er stundum fyrndur yfir nokkur ár, og þá dreifist lækkunin á tekjuskattinum á þau ár. Bókarinn veit hvað á við.</p>`
+          : html`<p class="muted">Ekkert á innkaupalista. Settu vöru á „Á innkaupalista“ til að sjá áhrifin.</p>`}
         </section>
       </div>
     </div>`;

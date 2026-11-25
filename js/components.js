@@ -92,7 +92,6 @@ export function MoneyInput({ value, onChange, placeholder, autofocus, step, allo
   const onInput = (e) => {
     const el = e.target;
     const raw = el.value;
-    if (/,\d*$/.test(raw)) { setText(raw); emit(raw); return; } // typing decimals: leave as is
     const digitsRight = raw.slice(el.selectionStart).replace(/\D/g, '').length;
     const neg = raw.trim().startsWith('-') || raw.trim().startsWith('−');
     const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
