@@ -104,7 +104,7 @@ function Settings() {
           <p class="muted">Sæktu öll gögn sem JSON-skrá, eða lestu inn afrit (sameinað við núverandi gögn).</p>
           <div class="row">
             <button onClick=${() => store.exportJSON()}><${Icon} name="download" size=${16} /> Sækja afrit</button>
-            <label class="btn ghost">Lesa inn afrit<input type="file" accept="application/json,.json" hidden onChange=${async (e) => { const f = e.target.files[0]; if (f) { try { const r = await store.importJSON(f); notify(`Lesið inn: ${r.invoices} reikningar, ${r.gigs} gigg, ${r.clients} nýir viðskiptavinir${r.skipped ? ` · ${r.skipped} reikningar voru þegar skráðir og var sleppt` : ''}.`); } catch (err) { notify('Ógild skrá: ' + err.message, 'error'); } } }} /></label>
+            <label class="btn ghost">Lesa inn afrit<input type="file" accept="application/json,.json" hidden onChange=${async (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) { try { const r = await store.importJSON(f); notify(r.invoices + r.gigs + r.clients ? `Lesið inn: ${r.invoices} reikningar, ${r.gigs} gigg, ${r.clients} nýir viðskiptavinir${r.skipped ? ` · ${r.skipped} reikningum var sleppt (þegar skráðir)` : ''}.` : 'Ekkert nýtt – allt í skránni var þegar skráð.'); } catch (err) { notify('Ógild skrá: ' + err.message, 'error'); } } }} /></label>
           </div>
         </section>
       </div>

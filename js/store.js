@@ -277,6 +277,8 @@ export async function importJSON(file) {
     return !dup;
   }).map(remap);
   inc.gigs = inc.gigs.filter((g) => !skippedGigs.has(g.id)).map(remap);
+  const isNew = (col) => (r) => !data[col].some((x) => x.id === r.id);
+  const counts = { invoices: inc.invoices.filter(isNew('invoices')).length, gigs: inc.gigs.filter(isNew('gigs')).length, clients: inc.clients.filter(isNew('clients')).length, skipped };
   let next = merge(data, inc);
   const patch = JSON.parse(await file.text()).settingsPatch;
   if (patch) {
@@ -286,5 +288,5 @@ export async function importJSON(file) {
     next = { ...next, settings: { ...st, updatedAt: Date.now() } };
   }
   commit(next);
-  return { invoices: inc.invoices.length, gigs: inc.gigs.length, clients: inc.clients.length, skipped };
+  return counts;
 }
