@@ -422,7 +422,7 @@ function TaxEffect({ amount, inclVat, vatRate }) {
   const fx = purchaseTaxEffect(store.getData(), new Date().getFullYear(), [{ amount, inclVat, vatRate }]);
   return html`<div class="full tax-effect">
     <div><span>Ef keypt í dag lækka skattarnir um</span><strong>${kr(fx.saving)}</strong></div>
-    <small class="muted">VSK til baka ${kr(fx.vatBack)} + lægri tekjuskattur ${kr(fx.incomeTax)} · raunkostnaður eftir skatta <strong>${kr(fx.realCost)}</strong> · til hliðar fyrir skatta fer úr ${kr(fx.before)} í ${kr(fx.after)}</small>
+    <small class="muted">VSK til baka ${kr(fx.vatBack)} + lægri tekjuskattur ${kr(fx.incomeTax)} · raunkostnaður eftir skatta <strong>${kr(fx.realCost)}</strong> · til hliðar fyrir skatta fer úr <strong class="plain">${kr(fx.before)}</strong> í <strong class="plain">${kr(fx.after)}</strong></small>
     <${SpendNote} amount=${fx.realCost} />
   </div>`;
 }

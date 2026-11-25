@@ -351,8 +351,8 @@ export function Purchases() {
             <div><span>VSK sem fæst til baka</span><strong>−${kr(listFx.vatBack)}</strong></div>
             <div><span>Lægri tekjuskattur${data.settings.ownPayMonthly ? '' : ' og tryggingagjald'}</span><strong>−${kr(listFx.incomeTax)}</strong></div>
             <div class="hl"><span>Raunkostnaður eftir skatta</span><strong>${kr(listFx.realCost)}</strong></div>
-            <div class="sep"><span>Til hliðar fyrir skatta núna</span><strong>${kr(listFx.before)}</strong></div>
-            <div class="hl"><span>Til hliðar eftir kaupin</span><strong>${kr(listFx.after)}</strong></div>
+            <div class="sep"><span>Til hliðar fyrir skatta núna</span><strong class="emph">${kr(listFx.before)}</strong></div>
+            <div class="hl"><span>Til hliðar eftir kaupin</span><strong class="emph">${kr(listFx.after)}</strong></div>
           </div>
           <${SpendNote} amount=${listFx.realCost} />
           <p class="hint">Miðað við skattaáætlunina í Bókhaldi (${thisYear}). Dýr búnaður er stundum fyrndur yfir nokkur ár, og þá dreifist lækkunin á tekjuskattinum á þau ár. Bókarinn veit hvað á við.</p>`
