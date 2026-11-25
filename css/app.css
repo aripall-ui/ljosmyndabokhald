@@ -350,3 +350,9 @@ button.primary.danger-fill { background: var(--red); border-color: var(--red); c
 .two-col.tight h3 { margin-top: 0; }
 .table tr.next td { background: var(--amber-soft); }
 .taxes .hint { margin-top: 8px; }
+.money.stepper input { padding-right: 64px; }
+.money.stepper > span { right: 36px; }
+.money .steps { position: absolute; right: 4px; top: 4px; bottom: 4px; display: flex; flex-direction: column; gap: 2px; }
+.money .steps button { flex: 1; min-height: 0; padding: 0 7px; font-size: 9px; line-height: 1; border-radius: 5px; color: var(--muted); background: var(--surface-2); border: 0; }
+.money .steps button:hover { color: var(--text); }
+.grid + .check { margin-top: 14px; }

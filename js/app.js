@@ -1,7 +1,7 @@
 import { html, render, useState, useEffect } from '../vendor/preact-htm.js';
 import * as store from './store.js';
 import * as dbx from './dropbox.js';
-import { useStore, useUI, openModal, Icon, Field, Segmented, Empty, Toasts, confirmAction, notify } from './components.js';
+import { useStore, useUI, openModal, Icon, Field, Segmented, Empty, Toasts, confirmAction, notify, MoneyInput } from './components.js';
 import { MODALS } from './forms.js';
 import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting, YearSelect } from './views.js';
 
@@ -96,17 +96,17 @@ function Settings() {
             <${Field} label="VSK-hlutfall (%)"><input type="number" value=${s.vatRate} onChange=${(e) => store.updateSettings({ vatRate: Number(e.target.value) || 0 })} /></${Field}>
             <${Field} label="VSK-skráður frá" hint="Fyrir þennan dag: enginn VSK á sölu og enginn frádráttur innskatts. Autt = alltaf VSK-skráður."><input type="date" value=${s.vatFrom || ''} onChange=${(e) => store.updateSettings({ vatFrom: e.target.value })} /></${Field}>
             <${Field} label="Greiðslufrestur (dagar)"><input type="number" value=${s.dueDays} onChange=${(e) => store.updateSettings({ dueDays: Number(e.target.value) || 0 })} /></${Field}>
-            <${Field} label="Tímagjald í reiknivél (kr.)"><input type="number" value=${s.hourlyRate} onChange=${(e) => store.updateSettings({ hourlyRate: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="Tímagjald í reiknivél"><${MoneyInput} value=${s.hourlyRate} step=${1000} onChange=${(v) => store.updateSettings({ hourlyRate: v || 0 })} /></${Field}>
           </div>
         </section>
         <section class="card">
           <h2>Skattaáætlun</h2>
           <p class="hint">Forsendur fyrir „Til hliðar fyrir skatta“. Tölur 2026 frá Skattinum.</p>
           <div class="grid">
-            <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þar sem þú átt lögheimili. Reykjavík: 14,97%"><input type="number" step="0.01" value=${s.utsvar ?? 14.97} onChange=${(e) => store.updateSettings({ utsvar: Number(String(e.target.value).replace(',', '.')) || 14.97 })} /></${Field}>
-            <${Field} label="Aðrar launatekjur á ári (kr.)" hint="Laun frá vinnuveitanda, fyrir skatt. Hefur áhrif á skattþrep"><input type="number" value=${s.otherIncome || ''} placeholder="0" onChange=${(e) => store.updateSettings({ otherIncome: Number(e.target.value) || 0 })} /></${Field}>
-            <${Field} label="Reiknað endurgjald á ári (kr.)" hint="Autt = allur hagnaður (varfærið). Bókarinn ákveður þessa tölu"><input type="number" value=${s.ownPay ?? ''} placeholder="Allur hagnaður" onChange=${(e) => store.updateSettings({ ownPay: e.target.value === '' ? '' : Number(e.target.value) })} /></${Field}>
-            <${Field} label="Skattur þegar greiddur á árinu (kr.)" hint="T.d. staðgreiðsla af reiknuðu endurgjaldi"><input type="number" value=${s.taxPrepaid || ''} placeholder="0" onChange=${(e) => store.updateSettings({ taxPrepaid: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þar sem þú átt lögheimili. Reykjavík: 14,97%"><input type="text" inputmode="decimal" value=${String(s.utsvar ?? 14.97).replace('.', ',')} onChange=${(e) => { const v = Number(String(e.target.value).replace(',', '.')); store.updateSettings({ utsvar: v > 0 && v < 30 ? v : 14.97 }); }} /></${Field}>
+            <${Field} label="Aðrar launatekjur á ári" hint="Laun frá vinnuveitanda, fyrir skatt. Hefur áhrif á skattþrep"><${MoneyInput} value=${s.otherIncome || 0} step=${1000000} onChange=${(v) => store.updateSettings({ otherIncome: v || 0 })} /></${Field}>
+            <${Field} label="Reiknað endurgjald á ári" hint="Autt = allur hagnaður (varfærið). Bókarinn ákveður þessa tölu"><${MoneyInput} value=${s.ownPay ?? ''} allowEmpty placeholder="Allur hagnaður" step=${100000} onChange=${(v) => store.updateSettings({ ownPay: v })} /></${Field}>
+            <${Field} label="Skattur þegar greiddur á árinu" hint="T.d. staðgreiðsla af reiknuðu endurgjaldi"><${MoneyInput} value=${s.taxPrepaid || 0} step=${10000} onChange=${(v) => store.updateSettings({ taxPrepaid: v || 0 })} /></${Field}>
           </div>
           <label class="check"><input type="checkbox" checked=${s.pensionOn !== false} onChange=${(e) => store.updateSettings({ pensionOn: e.target.checked })} /> Reikna lífeyrissjóð (15,5%) af reiknuðu endurgjaldi</label>
           <h3>Undanþegið VSK</h3>

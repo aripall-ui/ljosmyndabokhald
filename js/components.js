@@ -77,14 +77,45 @@ export function Segmented({ options, value, onChange, small }) {
   </div>`;
 }
 
-export function MoneyInput({ value, onChange, placeholder, autofocus }) {
-  const [text, setText] = useState(value ? fmtNum(value) : '');
+// Amount in krónur with thousand separators while typing (12.500).
+// step: arrow keys and the ▲▼ buttons change the amount by this much. allowEmpty: empty field gives ''.
+export function MoneyInput({ value, onChange, placeholder, autofocus, step, allowEmpty }) {
+  const show = (v) => (v === '' || v == null || (!v && !allowEmpty) ? '' : fmtNum(v));
+  const [text, setText] = useState(show(value));
   const ref = useRef();
-  useEffect(() => { if (parseAmount(text) !== (value || 0)) setText(value ? fmtNum(value) : ''); }, [value]);
+  useEffect(() => {
+    const cur = text === '' ? (allowEmpty ? '' : 0) : Math.round(parseAmount(text));
+    if (cur !== (value ?? (allowEmpty ? '' : 0))) setText(show(value));
+  }, [value]);
   useEffect(() => { if (autofocus && ref.current) ref.current.focus(); }, []);
-  return html`<div class="money"><input ref=${ref} type="text" inputmode="decimal" value=${text} placeholder=${placeholder || '0'}
-    onInput=${(e) => { setText(e.target.value); onChange(Math.round(parseAmount(e.target.value))); }}
-    onBlur=${() => setText(value ? fmtNum(value) : '')} /><span>kr.</span></div>`;
+  const emit = (t) => onChange(t === '' && allowEmpty ? '' : Math.round(parseAmount(t)));
+  const onInput = (e) => {
+    const el = e.target;
+    const raw = el.value;
+    if (/,\d*$/.test(raw)) { setText(raw); emit(raw); return; } // typing decimals: leave as is
+    const digitsRight = raw.slice(el.selectionStart).replace(/\D/g, '').length;
+    const neg = raw.trim().startsWith('-') || raw.trim().startsWith('−');
+    const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    const t = digits ? (neg ? '−' : '') + digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+    setText(t); emit(t);
+    // keep the caret at the same digit after dots are added
+    requestAnimationFrame(() => {
+      let pos = t.length, seen = 0;
+      while (pos > 0 && seen < digitsRight) { pos--; if (/\d/.test(t[pos])) seen++; }
+      try { el.setSelectionRange(pos, pos); } catch { /* ignore */ }
+    });
+  };
+  const bump = (dir) => {
+    const cur = Math.round(parseAmount(text)) || 0;
+    const next = Math.max(0, cur + dir * step);
+    setText(show(next)); onChange(next);
+  };
+  return html`<div class=${'money' + (step ? ' stepper' : '')}><input ref=${ref} type="text" inputmode="numeric" value=${text} placeholder=${placeholder || '0'}
+    onInput=${onInput}
+    onKeyDown=${(e) => { if (step && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); bump(e.key === 'ArrowUp' ? 1 : -1); } }}
+    onBlur=${() => setText(show(value))} /><span>kr.</span>
+    ${step && html`<div class="steps"><button type="button" tabindex="-1" aria-label=${'Hækka um ' + fmtNum(step)} onClick=${() => bump(1)}>▲</button><button type="button" tabindex="-1" aria-label=${'Lækka um ' + fmtNum(step)} onClick=${() => bump(-1)}>▼</button></div>`}
+  </div>`;
 }
 
 export function VatSummary({ net, vat, gross, extra }) {
