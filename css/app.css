@@ -371,3 +371,4 @@ button.primary.danger-fill { background: var(--red); border-color: var(--red); c
 .tax-effect strong.plain { color: var(--text); }
 .kv strong.emph { font-weight: 750; font-size: 1.08em; }
 .spend-note blockquote { color: var(--red); }
+.spend-note .wait { color: var(--red); font-size: 14px; font-weight: 550; }

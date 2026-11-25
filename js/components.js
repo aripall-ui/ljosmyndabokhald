@@ -215,6 +215,7 @@ export function SpendNote({ amount }) {
   const [q] = useState(() => THRIFT[Math.floor(Math.random() * THRIFT.length)]);
   return html`<div class="spend-note">
     <strong>Hins vegar þarftu samt að leggja út ${kr(amount)}</strong>
+    <span class="wait">Má þetta kannski bíða?</span>
     <blockquote><em>„${q[0]}“</em>${q[1] && html`<span> – ${q[1]}</span>`}</blockquote>
   </div>`;
 }
