@@ -27,8 +27,9 @@ export function GigForm({ id }) {
   const [f, setF] = useState(() => existing
     ? { ...existing, clientName: clientName(data, existing.clientId) }
     : { title: '', clientName: '', date: todayISO(), category: s.categories[0], pricing: 'osamid', price: 0, priceInclVat: false, status: 'bokad', notes: '', estHours: '', actualHours: '', estValue: 0 });
-  const [inv, setInv] = useState({ mode: 'none', number: '', date: '', paidDate: '' });
+  const [inv, setInv] = useState({ mode: 'none', number: '', date: '', due: '', paidDate: '' });
   const invDate = inv.date || f.date || todayISO();
+  const invDue = inv.due || addDays(invDate, s.dueDays);
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const linked = existing && invoiceForGig(data, existing.id);
   const amounts = calcVat(f.price, s.vatRate, f.priceInclVat);
@@ -41,7 +42,7 @@ export function GigForm({ id }) {
       const v = calcVat(gig.price, s.vatRate, gig.priceInclVat);
       store.upsert('invoices', {
         gigId: gig.id, clientId: gig.clientId, description: gig.title, number: inv.number.trim(),
-        issueDate: invDate, dueDate: addDays(invDate, s.dueDays), amount: gig.price, inclVat: !!gig.priceInclVat, vatRate: s.vatRate, ...v,
+        issueDate: invDate, dueDate: invDue, amount: gig.price, inclVat: !!gig.priceInclVat, vatRate: s.vatRate, ...v,
         status: inv.mode, sentDate: inv.mode === 'osent' ? '' : invDate, paidDate: inv.mode === 'greitt' ? inv.paidDate || invDate : '', notes: '',
       });
     }
@@ -99,8 +100,9 @@ export function GigForm({ id }) {
         <p class="hint">Fyrir eldri verkefni: skráðu reikninginn um leið.</p>
         <${Segmented} small options=${{ none: 'Enginn enn', osent: 'Ósent', sent: 'Sent', greitt: 'Greitt' }} value=${inv.mode} onChange=${(k) => setInv({ ...inv, mode: k })} />
         ${inv.mode !== 'none' && html`<div class="grid">
-          <${Field} label="Reikningsnúmer"><input type="text" value=${inv.number} onInput=${(e) => setInv({ ...inv, number: e.target.value })} /></${Field}>
-          <${Field} label="Dags. reiknings"><input type="date" value=${invDate} onInput=${(e) => setInv({ ...inv, date: e.target.value })} /></${Field}>
+          <${Field} label="Reikningsnúmer" hint="Númerið úr reikningakerfinu" full><input type="text" value=${inv.number} onInput=${(e) => setInv({ ...inv, number: e.target.value })} /></${Field}>
+          <${Field} label="Útgáfudagur" hint="Dagsetningin á reikningnum"><input type="date" value=${invDate} onInput=${(e) => setInv({ ...inv, date: e.target.value })} /></${Field}>
+          <${Field} label="Eindagi" hint=${`Sjálfgefið ${s.dueDays} dögum eftir útgáfudag`}><input type="date" value=${invDue} onInput=${(e) => setInv({ ...inv, due: e.target.value })} /></${Field}>
           ${inv.mode === 'greitt' && html`<${Field} label="Greitt dags."><input type="date" value=${inv.paidDate || invDate} onInput=${(e) => setInv({ ...inv, paidDate: e.target.value })} /></${Field}>`}
         </div>`}
       </fieldset>`}
@@ -204,10 +206,10 @@ export function InvoiceForm({ id, gigId }) {
         </select>
       </${Field}>
       <${Field} label="Viðskiptavinur"><${ClientInput} value=${f.clientName} onChange=${(val) => set({ clientName: val })} /></${Field}>
-      <${Field} label="Reikningsnúmer"><input type="text" value=${f.number} onInput=${(e) => set({ number: e.target.value })} placeholder="úr reikningakerfi" /></${Field}>
+      <${Field} label="Reikningsnúmer" hint="Númerið úr reikningakerfinu"><input type="text" value=${f.number} onInput=${(e) => set({ number: e.target.value })} /></${Field}>
       <${Field} label="Lýsing" full><input type="text" value=${f.description} onInput=${(e) => set({ description: e.target.value })} /></${Field}>
-      <${Field} label="Dags. reiknings" hint="Upprunaleg dagsetning"><input type="date" value=${f.issueDate} onInput=${(e) => set({ issueDate: e.target.value })} /></${Field}>
-      <${Field} label="Gjalddagi"><input type="date" value=${f.dueDate} onInput=${(e) => set({ dueDate: e.target.value, dueTouched: true })} /></${Field}>
+      <${Field} label="Útgáfudagur" hint="Dagsetningin á reikningnum"><input type="date" value=${f.issueDate} onInput=${(e) => set({ issueDate: e.target.value })} /></${Field}>
+      <${Field} label="Eindagi" hint=${`Sjálfgefið ${s.dueDays} dögum eftir útgáfudag`}><input type="date" value=${f.dueDate} onInput=${(e) => set({ dueDate: e.target.value, dueTouched: true })} /></${Field}>
       <${PriceFields} amount=${f.amount} inclVat=${f.inclVat} vatRate=${f.vatRate} rates=${[s.vatRate, 0]} onChange=${set} />
       <div class="full"><${VatSummary} ...${v} /></div>
       <${Field} label="Staða" full><${Segmented} options=${INV_STATUS} value=${f.status} onChange=${(k) => set({ status: k })} /></${Field}>

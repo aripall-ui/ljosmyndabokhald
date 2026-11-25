@@ -35,7 +35,7 @@ export async function exportForAccountant(data, period, progress = () => {}) {
   };
 
   // Invoices (issued in period, sent or paid)
-  const invRows = [['Reikningsnúmer', 'Dagsetning', 'Gjalddagi', 'Viðskiptavinur', 'Kennitala', 'Lýsing', 'Upphæð án VSK', 'VSK %', 'VSK', 'Upphæð með VSK', 'Staða', 'Sent', 'Greitt', 'Fylgiskjal']];
+  const invRows = [['Reikningsnúmer', 'Útgáfudagur', 'Eindagi', 'Viðskiptavinur', 'Kennitala', 'Lýsing', 'Upphæð án VSK', 'VSK %', 'VSK', 'Upphæð með VSK', 'Staða', 'Sent', 'Greitt', 'Fylgiskjal']];
   for (const i of [...r.issued].sort((a, b) => a.issueDate.localeCompare(b.issueDate))) {
     const c = client(i.clientId);
     const file = attach('Reikningar', i.attachment, `${i.issueDate} ${i.number || ''} ${c.name || ''}`);
@@ -44,12 +44,12 @@ export async function exportForAccountant(data, period, progress = () => {}) {
   zip.file('reikningar.csv', csv(invRows));
 
   // Payments received in period
-  const payRows = [['Greiðsludagur', 'Reikningsnúmer', 'Dags. reiknings', 'Viðskiptavinur', 'Upphæð með VSK']];
+  const payRows = [['Greiðsludagur', 'Reikningsnúmer', 'Útgáfudagur', 'Viðskiptavinur', 'Upphæð með VSK']];
   for (const i of [...r.paid].sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || ''))) payRows.push([i.paidDate, i.number, i.issueDate, clientName(data, i.clientId), i.gross]);
   zip.file('greidslur.csv', csv(payRows));
 
   // Outstanding at end of period
-  const outRows = [['Reikningsnúmer', 'Dagsetning', 'Gjalddagi', 'Viðskiptavinur', 'Kennitala', 'Lýsing', 'Upphæð án VSK', 'VSK', 'Upphæð með VSK']];
+  const outRows = [['Reikningsnúmer', 'Útgáfudagur', 'Eindagi', 'Viðskiptavinur', 'Kennitala', 'Lýsing', 'Upphæð án VSK', 'VSK', 'Upphæð með VSK']];
   for (const i of r.outstanding) { const c = client(i.clientId); outRows.push([i.number, i.issueDate, i.dueDate, c.name, c.kennitala, i.description, i.net, i.vat, i.gross]); }
   zip.file('utistandandi.csv', csv(outRows));
 

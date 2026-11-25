@@ -148,9 +148,9 @@ function InvoiceRow({ i, data, year }) {
     <div class="item-main">
       <strong>${i.description || 'Reikningur'} ${i.number ? html`<span class="muted">· nr. ${i.number}</span>` : ''}</strong>
       <span class="muted">${clientName(data, i.clientId) || 'Án viðskiptavinar'} · ${fmtDate(i.issueDate)}
-        ${i.status === 'sent' && i.dueDate ? ` · gjalddagi ${fmtDate(i.dueDate)}` : ''}${i.status === 'greitt' ? ` · greitt ${fmtDate(i.paidDate)}` : ''}</span>
+        ${i.status === 'sent' && i.dueDate ? ` · eindagi ${fmtDate(i.dueDate)}` : ''}${i.status === 'greitt' ? ` · greitt ${fmtDate(i.paidDate)}` : ''}</span>
       <span class="badges">
-        ${overdue && html`<${Badge} tone="red">Komið fram yfir gjalddaga</${Badge}>`}
+        ${overdue && html`<${Badge} tone="red">Komið fram yfir eindaga</${Badge}>`}
         ${older && i.status !== 'greitt' && html`<${Badge} tone="purple">Frá ${yearOf(i.issueDate)}</${Badge}>`}
         ${i.attachment && html`<${Badge}><${Icon} name="clip" size=${12} /> PDF</${Badge}>`}
         ${i.vatRate === 0 && html`<${Badge}>Án VSK</${Badge}>`}

@@ -73,7 +73,7 @@ export function attentionItems(data) {
   const t = todayISO();
   const items = [];
   for (const i of data.invoices) {
-    if (isOverdue(i, t)) items.push({ tone: 'red', text: `Reikningur ${i.number || ''} er kominn fram yfir gjalddaga`, sub: `${clientName(data, i.clientId)} · ${daysBetween(i.dueDate, t)} dagar`, open: { type: 'invoice', id: i.id } });
+    if (isOverdue(i, t)) items.push({ tone: 'red', text: `Reikningur ${i.number || ''} er kominn fram yfir eindaga`, sub: `${clientName(data, i.clientId)} · ${daysBetween(i.dueDate, t)} dagar`, open: { type: 'invoice', id: i.id } });
   }
   for (const i of data.invoices.filter((i) => i.status === 'osent')) {
     items.push({ tone: 'amber', text: `Reikningur ósendur: ${i.description || i.number || 'án lýsingar'}`, sub: clientName(data, i.clientId), open: { type: 'invoice', id: i.id } });
