@@ -1,3 +1,4 @@
+import { notify } from './notify.js';
 // Page views
 import { html, useState } from '../vendor/preact-htm.js';
 import * as store from './store.js';
@@ -33,7 +34,7 @@ function Stat({ label, value, sub, tone, onClick }) {
   </button>`;
 }
 
-const go = (route) => { location.hash = '#/' + route; };
+const go = (route) => { location.hash = '#' + route; };
 function openTarget(o) {
   if (o.type === 'route') go(o.id);
   else if (o.type === 'newInvoiceFromGig') openModal('invoice', { gigId: o.id });
@@ -350,7 +351,7 @@ export function Accounting() {
   });
   const doExport = async () => {
     setBusy('Undirbý…');
-    try { await exportForAccountant(data, period, setBusy); } catch (e) { alert('Útflutningur mistókst: ' + e.message); }
+    try { await exportForAccountant(data, period, setBusy); } catch (e) { notify('Útflutningur mistókst: ' + e.message, 'error'); }
     setBusy('');
   };
   return html`

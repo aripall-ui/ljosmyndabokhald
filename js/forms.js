@@ -3,7 +3,7 @@ import { html, useState } from '../vendor/preact-htm.js';
 import * as store from './store.js';
 import {
   Modal, Field, Segmented, MoneyInput, VatSummary, PriceFields, AttachmentField, ClientInput, resolveClient,
-  closeModal, openModal, confirmDelete, Badge, Icon,
+  closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal,
 } from './components.js';
 import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
 import { GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts } from './calc.js';
@@ -34,7 +34,7 @@ export function GigForm({ id }) {
   const amounts = calcVat(f.price, s.vatRate, f.priceInclVat);
 
   const save = () => {
-    if (!f.title.trim()) { alert('Vantar heiti á gigg.'); return; }
+    if (!f.title.trim()) { notify('Vantar heiti á gigg.', 'error'); return; }
     const { clientName: cn, ...rest } = f;
     const gig = store.upsert('gigs', { ...rest, title: f.title.trim(), clientId: resolveClient(cn), estHours: num(f.estHours), actualHours: num(f.actualHours) });
     if (inv.mode !== 'none' && gig.pricing === 'samid' && !linked) {
@@ -47,7 +47,7 @@ export function GigForm({ id }) {
     }
     closeModal();
   };
-  const del = () => { if (confirmDelete('þessu giggi')) { store.remove('gigs', id); closeModal(); } };
+  const del = () => confirmDelete('þessu giggi', () => { store.remove('gigs', id); closeModal(); });
 
   const suggest = () => openModal('suggest', {
     category: f.category, estHours: Number(f.estHours) || 0, excludeId: id,
@@ -184,7 +184,7 @@ export function InvoiceForm({ id, gigId }) {
   const gigOptions = data.gigs.filter((g) => !invoicedGigs.has(g.id) && g.status !== 'haett').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   const save = () => {
-    if (!f.amount) { alert('Vantar upphæð.'); return; }
+    if (!f.amount) { notify('Vantar upphæð.', 'error'); return; }
     const { clientName: cn, dueTouched, ...rest } = f;
     store.upsert('invoices', {
       ...rest, ...v, clientId: resolveClient(cn), number: (f.number || '').trim(),
@@ -193,7 +193,7 @@ export function InvoiceForm({ id, gigId }) {
     });
     closeModal();
   };
-  const del = () => { if (confirmDelete('þessum reikningi')) { store.remove('invoices', id); closeModal(); } };
+  const del = () => confirmDelete('þessum reikningi', () => { store.remove('invoices', id); closeModal(); });
 
   return html`<${Modal} title=${existing ? 'Reikningur' : 'Skrá reikning'} footer=${html`<${Footer} onSave=${save} onDelete=${existing && del} />`}>
     <div class="grid">
@@ -246,13 +246,13 @@ export function ExpenseForm({ id, preset, onSaved, title }) {
   const suppliers = [...new Set(data.expenses.map((e) => e.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'is'));
 
   const save = () => {
-    if (!f.name.trim()) { alert('Vantar heiti.'); return; }
-    if (!f.amount) { alert('Vantar upphæð.'); return; }
+    if (!f.name.trim()) { notify('Vantar heiti.', 'error'); return; }
+    if (!f.amount) { notify('Vantar upphæð.', 'error'); return; }
     const rec = store.upsert('expenses', { ...f, name: f.name.trim(), ...v, deductibleVat });
     closeModal();
     if (onSaved) onSaved(rec);
   };
-  const del = () => { if (confirmDelete('þessum kostnaðarlið')) { store.remove('expenses', id); closeModal(); } };
+  const del = () => confirmDelete('þessum kostnaðarlið', () => { store.remove('expenses', id); closeModal(); });
 
   return html`<${Modal} title=${title || (existing ? 'Breyta kostnaði' : 'Skrá kostnað')} footer=${html`<${Footer} onSave=${save} onDelete=${existing && del} />`}>
     <div class="grid">
@@ -300,11 +300,11 @@ export function PurchaseForm({ id }) {
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const v = calcVat(f.estPrice, f.vatRate, f.inclVat);
   const save = () => {
-    if (!f.name.trim()) { alert('Vantar heiti.'); return; }
+    if (!f.name.trim()) { notify('Vantar heiti.', 'error'); return; }
     store.upsert('purchases', { ...f, name: f.name.trim() });
     closeModal();
   };
-  const del = () => { if (confirmDelete('þessari færslu')) { store.remove('purchases', id); closeModal(); } };
+  const del = () => confirmDelete('þessari færslu', () => { store.remove('purchases', id); closeModal(); });
   return html`<${Modal} title=${existing ? 'Breyta innkaupum' : 'Ný innkaupahugmynd'} footer=${html`<${Footer} onSave=${save} onDelete=${existing && del} />`}>
     <div class="grid">
       <${Field} label="Vara" full><input type="text" value=${f.name} autofocus placeholder="t.d. Sony 85mm f/1.4" onInput=${(e) => set({ name: e.target.value })} /></${Field}>
@@ -344,10 +344,10 @@ export function ClientForm({ id }) {
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const data = store.getData();
   const used = id && (data.gigs.some((g) => g.clientId === id) || data.invoices.some((i) => i.clientId === id));
-  const save = () => { if (!f.name.trim()) { alert('Vantar nafn.'); return; } store.upsert('clients', { ...f, name: f.name.trim() }); closeModal(); };
+  const save = () => { if (!f.name.trim()) { notify('Vantar nafn.', 'error'); return; } store.upsert('clients', { ...f, name: f.name.trim() }); closeModal(); };
   const del = () => {
-    if (used) { alert('Viðskiptavinur er tengdur giggum eða reikningum og verður ekki eytt.'); return; }
-    if (confirmDelete('viðskiptavini')) { store.remove('clients', id); closeModal(); }
+    if (used) { notify('Viðskiptavinur er tengdur giggum eða reikningum og verður ekki eytt.', 'error'); return; }
+    confirmDelete('viðskiptavini', () => { store.remove('clients', id); closeModal(); });
   };
   return html`<${Modal} title=${existing ? 'Viðskiptavinur' : 'Nýr viðskiptavinur'} footer=${html`<${Footer} onSave=${save} onDelete=${existing && del} />`}>
     <div class="grid">
@@ -362,6 +362,6 @@ export function ClientForm({ id }) {
 
 export const MODALS = {
   gig: GigForm, suggest: SuggestModal, invoice: InvoiceForm, paid: PaidModal, expense: ExpenseForm,
-  purchase: PurchaseForm, buy: BuyForm, client: ClientForm,
+  purchase: PurchaseForm, buy: BuyForm, client: ClientForm, confirm: ConfirmModal,
 };
 export { Icon, gigAmounts };

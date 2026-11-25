@@ -1,7 +1,7 @@
 import { html, render, useState, useEffect } from '../vendor/preact-htm.js';
 import * as store from './store.js';
 import * as dbx from './dropbox.js';
-import { useStore, useUI, openModal, Icon, Field, Segmented, Empty } from './components.js';
+import { useStore, useUI, openModal, Icon, Field, Segmented, Empty, Toasts, confirmAction, notify } from './components.js';
 import { MODALS } from './forms.js';
 import { Dashboard, Gigs, Invoices, Expenses, Purchases, Accounting, YearSelect } from './views.js';
 
@@ -51,7 +51,7 @@ function SyncIndicator() {
   if (store.getMode() !== 'dropbox') return null;
   const map = { idle: ['ok', 'Vistað í Dropbox'], saving: ['busy', s.message || 'Vistar…'], error: ['err', s.message], offline: ['warn', s.message], auth: ['err', s.message] };
   const [cls, text] = map[s.status] || map.idle;
-  return html`<a class=${'sync ' + cls} href="#/stillingar" title=${text}><${Icon} name="cloud" size=${16} /><span>${text}</span></a>`;
+  return html`<a class=${'sync ' + cls} href="#stillingar" title=${text}><${Icon} name="cloud" size=${16} /><span>${text}</span></a>`;
 }
 
 // ---------- settings ----------
@@ -71,10 +71,10 @@ function Settings() {
       <div class="stack">
         <section class="card">
           <h2>Gagnageymsla</h2>
-          ${store.getMode() === 'dropbox' ? html`
+          ${store.isDemo() ? html`<p>Þetta er prufuútgáfa. Gögnin eru aðeins vistuð í þessum vafra og Dropbox er ekki í boði hér.</p><${DemoActions} />` : store.getMode() === 'dropbox' ? html`
             ${dbx.isConnected() && sync.status !== 'auth' ? html`<p>Tengt við Dropbox${name ? ' sem ' + name : ''}. Gögn og skjöl eru í möppunni <strong>Dropbox/Apps/…</strong> sem appið á.</p>
               <div class="row"><button onClick=${() => store.refresh()}>Samstilla núna</button>
-              <button class="ghost danger" onClick=${() => confirm('Aftengja Dropbox á þessu tæki?') && store.disconnectDropbox()}>Aftengja</button></div>`
+              <button class="ghost danger" onClick=${() => confirmAction('Aftengja Dropbox á þessu tæki?', () => store.disconnectDropbox(), 'Aftengja')}>Aftengja</button></div>`
               : html`<p class="red">Ekki tengt – skráðu þig inn aftur.</p><button class="primary" onClick=${() => store.connectDropbox()}>Tengjast Dropbox</button>`}
           ` : html`<p>Gögnin eru aðeins vistuð í <strong>þessum vafra</strong>. Tengdu Dropbox til að fá öryggisafrit og aðgang úr símanum.</p>
             <${DropboxConnect} />`}
@@ -103,7 +103,7 @@ function Settings() {
           <p class="muted">Sæktu öll gögn sem JSON-skrá, eða lestu inn afrit (sameinað við núverandi gögn).</p>
           <div class="row">
             <button onClick=${() => store.exportJSON()}><${Icon} name="download" size=${16} /> Sækja afrit</button>
-            <label class="btn ghost">Lesa inn afrit<input type="file" accept="application/json" hidden onChange=${async (e) => { const f = e.target.files[0]; if (f) { try { await store.importJSON(f); alert('Afrit lesið inn.'); } catch (err) { alert('Ógild skrá: ' + err.message); } } }} /></label>
+            <label class="btn ghost">Lesa inn afrit<input type="file" accept="application/json" hidden onChange=${async (e) => { const f = e.target.files[0]; if (f) { try { await store.importJSON(f); notify('Afrit lesið inn.'); } catch (err) { notify('Ógild skrá: ' + err.message, 'error'); } } }} /></label>
           </div>
         </section>
       </div>
@@ -135,6 +135,17 @@ function DropboxConnect() {
     ${!preset && html`<${Field} label="Dropbox App key" hint="Úr Dropbox App Console (sjá leiðbeiningar)"><input type="text" value=${key} onInput=${(e) => setKey(e.target.value)} /></${Field}>`}
     <button class="primary" disabled=${!key} onClick=${() => store.connectDropbox(key)}><${Icon} name="cloud" size=${18} /> Tengjast Dropbox</button>
   </div>`;
+}
+
+function DemoActions() {
+  return html`<div class="row">
+    <button type="button" class="small" onClick=${() => confirmAction('Eyða öllum gögnum og byrja með autt app?', () => { store.replaceAll({}); notify('Öllum gögnum eytt. Þú getur byrjað að skrá.'); }, 'Eyða öllu')}>Byrja með autt</button>
+    <button type="button" class="small ghost" onClick=${() => confirmAction('Setja sýnigögnin inn aftur? Það sem þú hefur skráð hverfur.', async () => { const { sampleData } = await import('./sample.js'); store.replaceAll(sampleData()); notify('Sýnigögn sett inn.'); }, 'Setja inn')}>Setja inn sýnigögn</button>
+  </div>`;
+}
+function DemoBanner() {
+  if (!store.isDemo()) return null;
+  return html`<div class="demo-banner"><div><strong>Prufuútgáfa</strong> · Hér eru sýnigögn til að skoða. Allt sem þú skráir vistast aðeins í þessum vafra.</div><${DemoActions} /></div>`;
 }
 
 // ---------- first run ----------
@@ -175,19 +186,20 @@ function App() {
       <aside class="sidebar">
         <div class="brand"><div class="logo"><${Icon} name="camera" size=${18} /></div><span>Ljósmyndabókhald</span></div>
         <label class="year-pick"><span>Ár</span><${YearSelect} /></label>
-        <nav>${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} /><span>${r.label}</span></a>`)}</nav>
+        <nav>${ROUTES.map((r) => html`<a href=${'#' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} /><span>${r.label}</span></a>`)}</nav>
         <div class="sidebar-foot">
           <${SyncIndicator} />
-          <a href="#/stillingar" class=${route === 'stillingar' ? 'active' : ''}><${Icon} name="gear" /><span>Stillingar</span></a>
+          <a href="#stillingar" class=${route === 'stillingar' ? 'active' : ''}><${Icon} name="gear" /><span>Stillingar</span></a>
         </div>
       </aside>
       <header class="topbar">
         <div class="brand"><div class="logo"><${Icon} name="camera" size=${16} /></div><span>${route === 'stillingar' ? 'Stillingar' : (current || ROUTES[0]).label}</span></div>
-        <div class="row"><${SyncIndicator} /><${YearSelect} /><a class="icon-btn" href="#/stillingar" aria-label="Stillingar"><${Icon} name="gear" /></a></div>
+        <div class="row"><${SyncIndicator} /><${YearSelect} /><a class="icon-btn" href="#stillingar" aria-label="Stillingar"><${Icon} name="gear" /></a></div>
       </header>
-      <main class="main"><${View} /></main>
-      <nav class="bottomnav">${ROUTES.map((r) => html`<a href=${'#/' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} size=${22} /><span>${r.label}</span></a>`)}</nav>
+      <main class="main"><${DemoBanner} /><${View} /></main>
+      <nav class="bottomnav">${ROUTES.map((r) => html`<a href=${'#' + r.id} class=${route === r.id || (!current && route !== 'stillingar' && r.id === 'yfirlit') ? 'active' : ''}><${Icon} name=${r.icon} size=${22} /><span>${r.label}</span></a>`)}</nav>
       ${modals.map((m) => { const M = MODALS[m.type]; return html`<${M} key=${m.key} ...${m.props} />`; })}
+      <${Toasts} />
     </div>`;
 }
 

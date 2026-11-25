@@ -1,3 +1,4 @@
+import { notify, onToasts, getToasts } from './notify.js';
 // Shared UI pieces
 import { html, useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as store from './store.js';
@@ -114,7 +115,7 @@ export function AttachmentField({ value, onChange, folder, baseName, accept = 'a
     e.target.value = '';
     if (!file) return;
     setBusy(true);
-    try { onChange(await store.putFile(folder, file, baseName)); } catch (err) { alert('Tókst ekki að hlaða upp: ' + err.message); }
+    try { onChange(await store.putFile(folder, file, baseName)); } catch (err) { notify('Tókst ekki að hlaða upp: ' + err.message, 'error'); }
     setBusy(false);
   };
   return html`<div class="attach">
@@ -136,8 +137,20 @@ export function Empty({ children }) {
   return html`<div class="empty">${children}</div>`;
 }
 
-export function confirmDelete(what) {
-  return confirm(`Eyða ${what}? Ekki er hægt að afturkalla.`);
+// In-page confirmation: opens a small dialog, runs onYes if confirmed
+export function confirmAction(text, onYes, yesLabel = 'Já') { openModal('confirm', { text, onYes, yesLabel }); }
+export function confirmDelete(what, onYes) { confirmAction(`Eyða ${what}? Ekki er hægt að afturkalla.`, onYes, 'Eyða'); }
+export function ConfirmModal({ text, onYes, yesLabel }) {
+  return html`<${Modal} title="Staðfesta" footer=${html`<span></span><div class="row">
+      <button type="button" class="ghost" onClick=${closeModal}>Hætta við</button>
+      <button type="button" class=${yesLabel === 'Eyða' ? 'primary danger-fill' : 'primary'} onClick=${() => { closeModal(); onYes(); }}>${yesLabel}</button></div>`}>
+    <p>${text}</p>
+  </${Modal}>`;
+}
+export function Toasts() {
+  const [list, setList] = useState(getToasts());
+  useEffect(() => onToasts(setList), []);
+  return html`<div class="toasts" role="status" aria-live="polite">${list.map((t) => html`<div class=${'toast ' + t.tone} key=${t.id}>${t.text}</div>`)}</div>`;
 }
 
 // Typeable client name with suggestions; new names create a client on save
@@ -155,4 +168,4 @@ export function resolveClient(name) {
   return store.upsert('clients', { name }).id;
 }
 
-export { calcVat };
+export { calcVat, notify };

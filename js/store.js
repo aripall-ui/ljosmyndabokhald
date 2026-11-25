@@ -1,3 +1,4 @@
+import { notify } from './notify.js';
 // App state + persistence. Data lives in one JSON document.
 // Local mode: IndexedDB in this browser. Dropbox mode: /data.json in the app folder (IndexedDB used as cache).
 import { idbGet, idbSet } from './idb.js';
@@ -60,8 +61,8 @@ export const getData = () => data;
 export const getMode = () => mode;
 export const getSync = () => sync;
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-function notify() { listeners.forEach((fn) => fn()); }
-function setSync(status, message = '') { sync = { status, message }; notify(); }
+function emit() { listeners.forEach((fn) => fn()); }
+function setSync(status, message = '') { sync = { status, message }; emit(); }
 function setDirty(v) { dirty = v; localStorage.setItem('dirty', v ? '1' : '0'); }
 
 // ---------- mutations ----------
@@ -69,7 +70,7 @@ function commit(next) {
   data = next;
   idbSet('data', data).catch(() => {});
   setDirty(true);
-  notify();
+  emit();
   schedulePush();
 }
 
@@ -132,7 +133,7 @@ async function pullRemote() {
   data = merge(data, remoteData);
   rev = remote.rev; localStorage.setItem('dbx_rev', rev);
   idbSet('data', data).catch(() => {});
-  notify();
+  emit();
 }
 
 function handleError(e) {
@@ -155,7 +156,7 @@ export async function refresh() {
 
 export async function init() {
   let justConnected = false;
-  try { justConnected = await dbx.handleRedirect(); } catch (e) { alert(e.message); }
+  try { justConnected = await dbx.handleRedirect(); } catch (e) { notify(e.message, 'error'); }
   const cached = await idbGet('data').catch(() => null);
   if (cached) data = normalize(cached);
   if (justConnected) {
@@ -165,7 +166,14 @@ export async function init() {
     if (wasLocal) await migrateLocalFiles();
     setDirty(true); // merge local data into Dropbox
   }
-  notify();
+  if (isDemo() && !mode) {
+    mode = 'local';
+    try { localStorage.setItem('mode', 'local'); } catch { /* ignore */ }
+    const { sampleData } = await import('./sample.js');
+    data = sampleData();
+    idbSet('data', data).catch(() => {});
+  }
+  emit();
   if (mode === 'dropbox') {
     if (!dbx.isConnected()) setSync('auth', 'Tengjast þarf Dropbox aftur');
     else refresh();
@@ -174,8 +182,11 @@ export async function init() {
   }
 }
 
+export const isDemo = () => !!(window.APP_CONFIG && window.APP_CONFIG.demo);
+export function replaceAll(next) { commit(normalize(next)); }
+
 export function useLocalMode() {
-  mode = 'local'; localStorage.setItem('mode', 'local'); notify();
+  mode = 'local'; localStorage.setItem('mode', 'local'); emit();
 }
 export function connectDropbox(key) { return dbx.startAuth(key); }
 export function disconnectDropbox() {
@@ -210,10 +221,10 @@ export async function openFile(att) {
     let url;
     if (att.local) url = URL.createObjectURL(await idbGet('file:' + att.path));
     else url = await dbx.tempLink(att.path);
-    if (w) w.location.href = url; else location.href = url;
+    if (w) w.location.href = url; else if (att.local) notify('Ekki hægt að opna skjöl í þessari prufuútgáfu.', 'error'); else location.href = url;
   } catch (e) {
     if (w) w.close();
-    alert('Tókst ekki að opna skjalið: ' + e.message);
+    notify('Tókst ekki að opna skjalið: ' + e.message, 'error');
   }
 }
 
@@ -232,7 +243,7 @@ async function migrateLocalFiles() {
     data = next;
     await idbSet('data', data);
   } catch (e) {
-    alert('Ekki tókst að færa öll skjöl í Dropbox: ' + e.message);
+    notify('Ekki tókst að færa öll skjöl í Dropbox: ' + e.message, 'error');
   }
 }
 
