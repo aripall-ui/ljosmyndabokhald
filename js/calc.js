@@ -15,10 +15,12 @@ export const clientName = (data, id) => (data.clients.find((c) => c.id === id) |
 
 // VAT applies from the registration date (settings.vatFrom); before it, sales carry no VAT
 export const isVatRegistered = (settings, iso) => !(settings.vatFrom && iso && iso < settings.vatFrom);
-export const vatRateOn = (settings, iso) => (isVatRegistered(settings, iso) ? settings.vatRate : 0);
+// Categories exempt from VAT (e.g. music performance, art. 2(3) no. 12 of the VAT Act)
+export const isVatExempt = (settings, category) => !!category && (settings.vatExemptCategories || []).includes(category);
+export const vatRateOn = (settings, iso, category) => (isVatRegistered(settings, iso) && !isVatExempt(settings, category) ? settings.vatRate : 0);
 
 export function gigAmounts(g, settings) {
-  return calcVat(g.price || 0, vatRateOn(settings, g.date), !!g.priceInclVat);
+  return calcVat(g.price || 0, vatRateOn(settings, g.date, g.category), !!g.priceInclVat);
 }
 
 export const invoiceForGig = (data, gigId) => data.invoices.find((i) => i.gigId === gigId);

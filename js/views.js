@@ -9,6 +9,7 @@ import {
   summarize, yearsInData, upcomingGigs, attentionItems, gigAmounts, isOverdue, expenseCost,
 } from './calc.js';
 import { exportForAccountant } from './export.js';
+import { taxEstimate } from './tax.js';
 
 const STATUS_TONE = { bokad: 'blue', vinnsla: 'amber', afhent: 'purple', lokid: 'green', haett: 'grey' };
 const INV_TONE = { osent: 'amber', sent: 'blue', greitt: 'green', nidurfellt: 'grey' };
@@ -47,6 +48,7 @@ export function Dashboard() {
   const { year } = useUI();
   const r = summarize(data, periodRange({ year, kind: 'year' }));
   const prevYearOutstanding = r.outstanding.filter((i) => yearOf(i.issueDate) < year).length;
+  const tx = taxEstimate(data, year);
   const upcoming = upcomingGigs(data);
   const attention = attentionItems(data);
   return html`
@@ -63,7 +65,7 @@ export function Dashboard() {
       <${Stat} label="Ósendir reikningar" value=${kr(r.unsentGross)} sub=${`${r.unsentCount} atriði`} tone=${r.unsentCount ? 'warn' : ''} onClick=${() => go('reikningar')} />
       <${Stat} label="Kostnaður á árinu" value=${kr(r.cost)} sub="eftir frádrátt innskatts" onClick=${() => go('kostnadur')} />
       <${Stat} label="Tekjur umfram kostnað" value=${kr(r.result)} tone=${r.result < 0 ? 'neg' : 'pos'} onClick=${() => go('bokhald')} />
-      <${Stat} label="Áætluð VSK-staða" value=${kr(r.vatPayable)} sub=${r.vatPayable >= 0 ? 'til greiðslu' : 'til endurgreiðslu'} onClick=${() => go('bokhald')} />
+      <${Stat} label="Til hliðar fyrir skatta" value=${kr(tx.setAside)} sub=${tx.vat.toPay > 0 ? `þar af VSK ${kr(tx.vat.toPay)}` : 'tekjuskattur og gjöld'} tone="warn" onClick=${() => go('bokhald')} />
     </div>
     <div class="two-col">
       <section class="card">
@@ -399,6 +401,7 @@ export function Accounting() {
         </section>
       </div>
     </div>
+    <${Taxes} data=${data} year=${year} />
     <section class="card">
       <h2>VSK-tímabil ${year}</h2>
       <div class="table-wrap"><table class="table">
@@ -412,3 +415,49 @@ export function Accounting() {
 }
 
 export { inRange };
+
+// ======================= SKATTAR =======================
+const pct = (x) => String(Math.round(x * 1000) / 10).replace('.', ',') + '%';
+function Taxes({ data, year }) {
+  const t = taxEstimate(data, year);
+  const s = data.settings;
+  const current = year === new Date().getFullYear();
+  const row = (label, a, b, cls) => html`<tr class=${cls || ''}><td>${label}</td><td>${kr(a)}</td>${current && html`<td>${kr(b)}</td>`}</tr>`;
+  return html`<section class="card taxes">
+    <div class="section-head"><h2>Skattar og gjöld – áætlun ${year}</h2><a class="link-btn small" href="#stillingar">Forsendur</a></div>
+    <div class="set-aside">
+      <span>Taktu til hliðar</span>
+      <strong>${kr(t.setAside)}</strong>
+      <small>miðað við skráðar tekjur og kostnað${current ? ' í dag' : ''}: tekjuskattur, útsvar, tryggingagjald${s.pensionOn === false ? '' : ', lífeyrissjóður'} og ógreiddur VSK${t.prepaid ? ', að frádregnu því sem er þegar greitt' : ''}</small>
+    </div>
+    <div class="two-col tight">
+      <div>
+        <h3>Tekjuskattur og gjöld</h3>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th></th><th>${current ? 'Hingað til' : 'Árið'}</th>${current && html`<th>Áætlun fyrir árið</th>`}</tr></thead>
+          <tbody>
+            ${row('Hagnaður (tekjur − kostnaður)', t.profit, t.projected)}
+            ${row('Reiknað endurgjald', t.now.R, t.full.R)}
+            ${row(`Tryggingagjald ${String(t.params.tryggingagjald).replace('.', ',')}%`, t.now.tg, t.full.tg)}
+            ${s.pensionOn !== false && row(`Lífeyrissjóður ${String(t.params.pension).replace('.', ',')}%`, t.now.pension, t.full.pension)}
+            ${row(`Tekjuskattur og útsvar (${pct(t.effRate)})`, t.now.incomeTax, t.full.incomeTax)}
+            ${t.prepaid > 0 && html`<tr><td>Þegar greitt fyrirfram</td><td>−${kr(t.prepaid)}</td>${current && html`<td></td>`}</tr>`}
+          </tbody>
+          <tfoot>${row('Samtals', Math.max(0, t.now.tg + t.now.pension + t.now.incomeTax - t.prepaid), t.full.tg + t.full.pension + t.full.incomeTax)}</tfoot>
+        </table></div>
+        <p class="hint">Skattlagt í álagningu næsta sumar. Hlutfallið er jaðarskattur ofan á ${s.otherIncome ? `aðrar launatekjur (${kr(s.otherIncome)})` : 'engar aðrar tekjur'} með útsvari ${String(s.utsvar || 14.94).replace('.', ',')}%. ${s.ownPay === '' || s.ownPay == null ? 'Allur hagnaður reiknaður sem reiknað endurgjald (varfærið).' : ''}</p>
+      </div>
+      <div>
+        <h3>Virðisaukaskattur</h3>
+        ${t.vat.periods.length ? html`<div class="table-wrap"><table class="table">
+          <thead><tr><th>Tímabil</th><th>Gjalddagi</th><th>Upphæð</th></tr></thead>
+          <tbody>${t.vat.periods.map((v) => html`<tr class=${v === t.vat.next ? 'next' : ''}>
+            <td>${VAT_PERIODS[v.n - 1]}</td><td>${fmtDate(v.due)}</td><td>${kr(v.amount)} ${v.paid ? html`<${Badge}>liðinn</${Badge}>` : v === t.vat.next ? html`<${Badge} tone="amber">næst</${Badge}>` : ''}</td></tr>`)}</tbody>
+          <tfoot><tr><td>Ógreitt</td><td></td><td>${kr(t.vat.toPay)}</td></tr></tfoot>
+        </table></div>` : html`<p class="muted">Enginn VSK á árinu.</p>`}
+        <p class="hint">${(s.vatExemptCategories || []).length ? `Undanþegið VSK: ${(s.vatExemptCategories || []).join(', ')}. ` : ''}Tímabil með liðnum gjalddaga eru talin greidd.</p>
+      </div>
+    </div>
+    <p class="hint">Þetta er áætlun til að vita hvað á að leggja til hliðar, ekki álagning. Bókarinn fer yfir endanlega útreikninga.</p>
+  </section>`;
+}

@@ -100,6 +100,20 @@ function Settings() {
           </div>
         </section>
         <section class="card">
+          <h2>Skattaáætlun</h2>
+          <p class="hint">Forsendur fyrir „Til hliðar fyrir skatta“. Tölur 2026 frá Skattinum.</p>
+          <div class="grid">
+            <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þíns. Meðaltal 14,94%"><input type="number" step="0.01" value=${s.utsvar ?? 14.94} onChange=${(e) => store.updateSettings({ utsvar: Number(String(e.target.value).replace(',', '.')) || 14.94 })} /></${Field}>
+            <${Field} label="Aðrar launatekjur á ári (kr.)" hint="Laun frá vinnuveitanda, fyrir skatt. Hefur áhrif á skattþrep"><input type="number" value=${s.otherIncome || ''} placeholder="0" onChange=${(e) => store.updateSettings({ otherIncome: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="Reiknað endurgjald á ári (kr.)" hint="Autt = allur hagnaður (varfærið). Bókarinn ákveður þessa tölu"><input type="number" value=${s.ownPay ?? ''} placeholder="Allur hagnaður" onChange=${(e) => store.updateSettings({ ownPay: e.target.value === '' ? '' : Number(e.target.value) })} /></${Field}>
+            <${Field} label="Skattur þegar greiddur á árinu (kr.)" hint="T.d. staðgreiðsla af reiknuðu endurgjaldi"><input type="number" value=${s.taxPrepaid || ''} placeholder="0" onChange=${(e) => store.updateSettings({ taxPrepaid: Number(e.target.value) || 0 })} /></${Field}>
+          </div>
+          <label class="check"><input type="checkbox" checked=${s.pensionOn !== false} onChange=${(e) => store.updateSettings({ pensionOn: e.target.checked })} /> Reikna lífeyrissjóð (15,5%) af reiknuðu endurgjaldi</label>
+          <h3>Undanþegið VSK</h3>
+          <div class="checks">${s.categories.map((c) => html`<label class="check"><input type="checkbox" checked=${(s.vatExemptCategories || []).includes(c)} onChange=${(e) => store.updateSettings({ vatExemptCategories: e.target.checked ? [...new Set([...(s.vatExemptCategories || []), c])] : (s.vatExemptCategories || []).filter((x) => x !== c) })} /> ${c}</label>`)}</div>
+          <p class="hint">Gigg og reikningar í þessum flokkum fá sjálfkrafa 0% VSK, t.d. tónlistarflutningur.</p>
+        </section>
+        <section class="card">
           <h2>Afrit</h2>
           <p class="muted">Sæktu öll gögn sem JSON-skrá, eða lestu inn afrit (sameinað við núverandi gögn).</p>
           <div class="row">

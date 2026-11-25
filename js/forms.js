@@ -43,14 +43,14 @@ export function GigForm({ id }) {
   const invDue = inv.due || addDays(invDate, dueDaysFor(f.clientName));
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const linked = existing && invoiceForGig(data, existing.id);
-  const amounts = calcVat(f.price, vatRateOn(s, f.date), f.priceInclVat);
+  const amounts = calcVat(f.price, vatRateOn(s, f.date, f.category), f.priceInclVat);
 
   const save = () => {
     if (!f.title.trim()) { notify('Vantar heiti á gigg.', 'error'); return; }
     const { clientName: cn, ...rest } = f;
     const gig = store.upsert('gigs', { ...rest, title: f.title.trim(), clientId: resolveClient(cn), estHours: num(f.estHours), actualHours: num(f.actualHours) });
     if (inv.mode !== 'none' && gig.pricing === 'samid' && !linked) {
-      const invRate = vatRateOn(s, invDate);
+      const invRate = vatRateOn(s, invDate, gig.category);
       const v = calcVat(gig.price, invRate, gig.priceInclVat);
       store.upsert('invoices', {
         gigId: gig.id, clientId: gig.clientId, description: gig.title, number: inv.number.trim(),
@@ -182,14 +182,15 @@ export function InvoiceForm({ id, gigId }) {
     if (!g) return base;
     const cn = clientName(data, g.clientId);
     return { ...base, gigId: gid, clientName: cn, description: g.title, amount: g.price || 0, inclVat: !!g.priceInclVat,
-      ...(base.dueTouched ? {} : { dueDate: addDays(base.issueDate, dueDaysFor(cn)) }) };
+      ...(base.dueTouched ? {} : { dueDate: addDays(base.issueDate, dueDaysFor(cn)) }),
+      ...(base.vatTouched || base.id ? {} : { vatRate: vatRateOn(s, base.issueDate, g.category) }) };
   };
   const [f, setF] = useState(() => {
     if (existing) return { ...existing, clientName: clientName(data, existing.clientId), dueTouched: true };
     const t = todayISO();
     return fromGig(gigId, {
       gigId: '', clientName: '', description: '', number: '', issueDate: t, dueDate: addDays(t, s.dueDays), dueTouched: false,
-      amount: 0, inclVat: false, vatRate: vatRateOn(s, t), vatTouched: false, status: 'sent', sentDate: t, paidDate: '', attachment: null, notes: '',
+      amount: 0, inclVat: false, vatRate: vatRateOn(s, t, (store.find('gigs', gigId) || {}).category), vatTouched: false, status: 'sent', sentDate: t, paidDate: '', attachment: null, notes: '',
     });
   });
   const set = (patch) => setF((o) => {
@@ -197,7 +198,7 @@ export function InvoiceForm({ id, gigId }) {
     if ((patch.issueDate || patch.clientName !== undefined) && !o.dueTouched) n.dueDate = addDays(n.issueDate, dueDaysFor(n.clientName));
     if (patch.issueDate && (o.sentDate === o.issueDate || !o.sentDate)) n.sentDate = patch.issueDate;
     if (patch.vatRate !== undefined) n.vatTouched = true;
-    else if (patch.issueDate && !o.vatTouched && !existing) n.vatRate = vatRateOn(s, patch.issueDate);
+    else if ((patch.issueDate || patch.gigId !== undefined) && !o.vatTouched && !existing) n.vatRate = vatRateOn(s, n.issueDate, (store.find('gigs', n.gigId) || {}).category);
     if (patch.status === 'greitt' && !n.paidDate) n.paidDate = todayISO();
     return n;
   });

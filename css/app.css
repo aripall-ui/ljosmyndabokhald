@@ -341,3 +341,12 @@ button.primary.danger-fill { background: var(--red); border-color: var(--red); c
 /* toasts at the top so they never cover form buttons */
 .toasts, .toasts { top: calc(16px + env(safe-area-inset-top, 0px)); bottom: auto; }
 @media (max-width: 760px) { .toasts { top: calc(64px + env(safe-area-inset-top, 0px)); bottom: auto; } }
+/* taxes */
+.set-aside { display: flex; flex-direction: column; gap: 2px; background: var(--accent-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.set-aside span { font-size: 13px; color: var(--muted); font-weight: 550; }
+.set-aside strong { font-size: 28px; letter-spacing: -.02em; }
+.set-aside small { color: var(--muted); font-size: 12.5px; }
+.two-col.tight { margin-top: 0; gap: 24px; }
+.two-col.tight h3 { margin-top: 0; }
+.table tr.next td { background: var(--amber-soft); }
+.taxes .hint { margin-top: 8px; }
