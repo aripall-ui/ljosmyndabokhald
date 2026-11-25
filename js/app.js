@@ -112,7 +112,7 @@ function Settings() {
           <div class="section-head"><h2>Viðskiptavinir</h2><button class="ghost small" onClick=${() => openModal('client')}><${Icon} name="plus" size=${14} /> Nýr</button></div>
           ${data.clients.length ? html`<div class="list compact">${data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'is')).map((c) => html`
             <button type="button" class="item" onClick=${() => openModal('client', { id: c.id })}>
-              <div class="item-main"><strong>${c.name}</strong><span class="muted">${[c.kennitala, c.email, c.phone].filter(Boolean).join(' · ') || 'Engar nánari upplýsingar'}</span></div>
+              <div class="item-main"><strong>${c.name}</strong><span class="muted">${[c.kennitala, c.email, c.phone, c.paymentDays ? `${c.paymentDays} daga greiðslufrestur` : ''].filter(Boolean).join(' · ') || 'Engar nánari upplýsingar'}</span></div>
               <span class="muted small">${data.gigs.filter((g) => g.clientId === c.id).length} gigg</span>
             </button>`)}</div>` : html`<${Empty}>Viðskiptavinir verða til sjálfkrafa þegar þú skráir gigg eða reikninga.</${Empty}>`}
         </section>

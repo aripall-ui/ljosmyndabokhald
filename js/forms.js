@@ -9,6 +9,17 @@ import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
 import { GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts } from './calc.js';
 
 const num = (v) => (v === '' || v == null ? '' : Number(v));
+// Payment terms: the client's own, else the default from settings
+export function dueDaysFor(name) {
+  const d = store.getData();
+  const c = d.clients.find((x) => x.name.toLowerCase() === (name || '').trim().toLowerCase());
+  return c && Number(c.paymentDays) > 0 ? Number(c.paymentDays) : d.settings.dueDays;
+}
+const dueHint = (name) => {
+  const days = dueDaysFor(name);
+  const own = days !== store.getData().settings.dueDays;
+  return `${days} dögum eftir útgáfudag${own ? ' (frestur viðskiptavinar)' : ''}`;
+};
 
 function Footer({ onSave, onDelete, saveLabel = 'Vista' }) {
   return html`
@@ -27,9 +38,9 @@ export function GigForm({ id }) {
   const [f, setF] = useState(() => existing
     ? { ...existing, clientName: clientName(data, existing.clientId) }
     : { title: '', clientName: '', date: todayISO(), category: s.categories[0], pricing: 'osamid', price: 0, priceInclVat: false, status: 'bokad', notes: '', estHours: '', actualHours: '', estValue: 0 });
-  const [inv, setInv] = useState({ mode: 'none', number: '', date: '', due: '', paidDate: '' });
+  const [inv, setInv] = useState({ mode: 'none', number: '', date: '', due: '', paidDate: '', attachment: null });
   const invDate = inv.date || f.date || todayISO();
-  const invDue = inv.due || addDays(invDate, s.dueDays);
+  const invDue = inv.due || addDays(invDate, dueDaysFor(f.clientName));
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const linked = existing && invoiceForGig(data, existing.id);
   const amounts = calcVat(f.price, s.vatRate, f.priceInclVat);
@@ -43,7 +54,7 @@ export function GigForm({ id }) {
       store.upsert('invoices', {
         gigId: gig.id, clientId: gig.clientId, description: gig.title, number: inv.number.trim(),
         issueDate: invDate, dueDate: invDue, amount: gig.price, inclVat: !!gig.priceInclVat, vatRate: s.vatRate, ...v,
-        status: inv.mode, sentDate: inv.mode === 'osent' ? '' : invDate, paidDate: inv.mode === 'greitt' ? inv.paidDate || invDate : '', notes: '',
+        status: inv.mode, attachment: inv.attachment, sentDate: inv.mode === 'osent' ? '' : invDate, paidDate: inv.mode === 'greitt' ? inv.paidDate || invDate : '', notes: '',
       });
     }
     closeModal();
@@ -102,7 +113,10 @@ export function GigForm({ id }) {
         ${inv.mode !== 'none' && html`<div class="grid">
           <${Field} label="Reikningsnúmer" hint="Númerið úr reikningakerfinu" full><input type="text" value=${inv.number} onInput=${(e) => setInv({ ...inv, number: e.target.value })} /></${Field}>
           <${Field} label="Útgáfudagur" hint="Dagsetningin á reikningnum"><input type="date" value=${invDate} onInput=${(e) => setInv({ ...inv, date: e.target.value })} /></${Field}>
-          <${Field} label="Eindagi" hint=${`Sjálfgefið ${s.dueDays} dögum eftir útgáfudag`}><input type="date" value=${invDue} onInput=${(e) => setInv({ ...inv, due: e.target.value })} /></${Field}>
+          <${Field} label="Eindagi" hint=${dueHint(f.clientName)}><input type="date" value=${invDue} onInput=${(e) => setInv({ ...inv, due: e.target.value })} /></${Field}>
+          <${Field} label="Reikningur (PDF)" full>
+            <${AttachmentField} value=${inv.attachment} onChange=${(a) => setInv({ ...inv, attachment: a })} folder=${'Reikningar/' + (yearOf(invDate) || '')} baseName=${`${invDate} ${inv.number || ''} ${f.clientName || ''}`} />
+          </${Field}>
           ${inv.mode === 'greitt' && html`<${Field} label="Greitt dags."><input type="date" value=${inv.paidDate || invDate} onInput=${(e) => setInv({ ...inv, paidDate: e.target.value })} /></${Field}>`}
         </div>`}
       </fieldset>`}
@@ -164,7 +178,9 @@ export function InvoiceForm({ id, gigId }) {
   const fromGig = (gid, base) => {
     const g = store.find('gigs', gid);
     if (!g) return base;
-    return { ...base, gigId: gid, clientName: clientName(data, g.clientId), description: g.title, amount: g.price || 0, inclVat: !!g.priceInclVat };
+    const cn = clientName(data, g.clientId);
+    return { ...base, gigId: gid, clientName: cn, description: g.title, amount: g.price || 0, inclVat: !!g.priceInclVat,
+      ...(base.dueTouched ? {} : { dueDate: addDays(base.issueDate, dueDaysFor(cn)) }) };
   };
   const [f, setF] = useState(() => {
     if (existing) return { ...existing, clientName: clientName(data, existing.clientId), dueTouched: true };
@@ -176,7 +192,7 @@ export function InvoiceForm({ id, gigId }) {
   });
   const set = (patch) => setF((o) => {
     const n = { ...o, ...patch };
-    if (patch.issueDate && !o.dueTouched) n.dueDate = addDays(patch.issueDate, s.dueDays);
+    if ((patch.issueDate || patch.clientName !== undefined) && !o.dueTouched) n.dueDate = addDays(n.issueDate, dueDaysFor(n.clientName));
     if (patch.issueDate && (o.sentDate === o.issueDate || !o.sentDate)) n.sentDate = patch.issueDate;
     if (patch.status === 'greitt' && !n.paidDate) n.paidDate = todayISO();
     return n;
@@ -209,7 +225,7 @@ export function InvoiceForm({ id, gigId }) {
       <${Field} label="Reikningsnúmer" hint="Númerið úr reikningakerfinu"><input type="text" value=${f.number} onInput=${(e) => set({ number: e.target.value })} /></${Field}>
       <${Field} label="Lýsing" full><input type="text" value=${f.description} onInput=${(e) => set({ description: e.target.value })} /></${Field}>
       <${Field} label="Útgáfudagur" hint="Dagsetningin á reikningnum"><input type="date" value=${f.issueDate} onInput=${(e) => set({ issueDate: e.target.value })} /></${Field}>
-      <${Field} label="Eindagi" hint=${`Sjálfgefið ${s.dueDays} dögum eftir útgáfudag`}><input type="date" value=${f.dueDate} onInput=${(e) => set({ dueDate: e.target.value, dueTouched: true })} /></${Field}>
+      <${Field} label="Eindagi" hint=${f.dueTouched && existing ? '' : dueHint(f.clientName)}><input type="date" value=${f.dueDate} onInput=${(e) => set({ dueDate: e.target.value, dueTouched: true })} /></${Field}>
       <${PriceFields} amount=${f.amount} inclVat=${f.inclVat} vatRate=${f.vatRate} rates=${[s.vatRate, 0]} onChange=${set} />
       <div class="full"><${VatSummary} ...${v} /></div>
       <${Field} label="Staða" full><${Segmented} options=${INV_STATUS} value=${f.status} onChange=${(k) => set({ status: k })} /></${Field}>
@@ -342,7 +358,7 @@ export function BuyForm({ id }) {
 // ================= CLIENT =================
 export function ClientForm({ id }) {
   const existing = store.find('clients', id);
-  const [f, setF] = useState(() => existing || { name: '', kennitala: '', email: '', phone: '', notes: '' });
+  const [f, setF] = useState(() => existing || { name: '', kennitala: '', email: '', phone: '', paymentDays: '', notes: '' });
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const data = store.getData();
   const used = id && (data.gigs.some((g) => g.clientId === id) || data.invoices.some((i) => i.clientId === id));
@@ -356,6 +372,7 @@ export function ClientForm({ id }) {
       <${Field} label="Nafn" full><input type="text" value=${f.name} onInput=${(e) => set({ name: e.target.value })} /></${Field}>
       <${Field} label="Kennitala"><input type="text" inputmode="numeric" value=${f.kennitala} onInput=${(e) => set({ kennitala: e.target.value })} /></${Field}>
       <${Field} label="Sími"><input type="tel" value=${f.phone} onInput=${(e) => set({ phone: e.target.value })} /></${Field}>
+      <${Field} label="Greiðslufrestur (dagar)" hint=${`Autt = sjálfgefið (${data.settings.dueDays} dagar)`}><input type="number" min="0" inputmode="numeric" value=${f.paymentDays ?? ''} placeholder=${String(data.settings.dueDays)} onInput=${(e) => set({ paymentDays: e.target.value === '' ? '' : Number(e.target.value) })} /></${Field}>
       <${Field} label="Netfang" full><input type="email" value=${f.email} onInput=${(e) => set({ email: e.target.value })} /></${Field}>
       <${Field} label="Athugasemdir" full><textarea rows="2" value=${f.notes} onInput=${(e) => set({ notes: e.target.value })}></textarea></${Field}>
     </div>

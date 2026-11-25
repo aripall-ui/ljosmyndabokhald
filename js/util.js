@@ -96,7 +96,7 @@ export const roundTo = (n, step) => Math.round(n / step) * step;
 export const sum = (arr, f = (x) => x) => arr.reduce((a, x) => a + (Number(f(x)) || 0), 0);
 
 export function safeFileName(s) {
-  return String(s || 'skjal').replace(/[\/\\:*?"<>|#%]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 80) || 'skjal';
+  return String(s || 'skjal').replace(/[\/\\:*?"<>|#%]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 80).replace(/[. ]+$/, '') || 'skjal';
 }
 export function asciiName(s) {
   const map = { á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', ý: 'y', ð: 'd', þ: 'th', æ: 'ae', ö: 'o' };
