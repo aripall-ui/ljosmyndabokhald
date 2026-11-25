@@ -10,8 +10,12 @@ export const ACTIVE_PURCHASE = ['hugmynd', 'skodun', 'listi'];
 
 export const clientName = (data, id) => (data.clients.find((c) => c.id === id) || {}).name || '';
 
+// VAT applies from the registration date (settings.vatFrom); before it, sales carry no VAT
+export const isVatRegistered = (settings, iso) => !(settings.vatFrom && iso && iso < settings.vatFrom);
+export const vatRateOn = (settings, iso) => (isVatRegistered(settings, iso) ? settings.vatRate : 0);
+
 export function gigAmounts(g, settings) {
-  return calcVat(g.price || 0, settings.vatRate, !!g.priceInclVat);
+  return calcVat(g.price || 0, vatRateOn(settings, g.date), !!g.priceInclVat);
 }
 
 export const invoiceForGig = (data, gigId) => data.invoices.find((i) => i.gigId === gigId);

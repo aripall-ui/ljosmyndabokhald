@@ -6,7 +6,7 @@ import {
   closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal,
 } from './components.js';
 import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
-import { GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts } from './calc.js';
+import { GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts, vatRateOn, isVatRegistered } from './calc.js';
 
 const num = (v) => (v === '' || v == null ? '' : Number(v));
 // Payment terms: the client's own, else the default from settings
@@ -43,17 +43,18 @@ export function GigForm({ id }) {
   const invDue = inv.due || addDays(invDate, dueDaysFor(f.clientName));
   const set = (patch) => setF((o) => ({ ...o, ...patch }));
   const linked = existing && invoiceForGig(data, existing.id);
-  const amounts = calcVat(f.price, s.vatRate, f.priceInclVat);
+  const amounts = calcVat(f.price, vatRateOn(s, f.date), f.priceInclVat);
 
   const save = () => {
     if (!f.title.trim()) { notify('Vantar heiti á gigg.', 'error'); return; }
     const { clientName: cn, ...rest } = f;
     const gig = store.upsert('gigs', { ...rest, title: f.title.trim(), clientId: resolveClient(cn), estHours: num(f.estHours), actualHours: num(f.actualHours) });
     if (inv.mode !== 'none' && gig.pricing === 'samid' && !linked) {
-      const v = calcVat(gig.price, s.vatRate, gig.priceInclVat);
+      const invRate = vatRateOn(s, invDate);
+      const v = calcVat(gig.price, invRate, gig.priceInclVat);
       store.upsert('invoices', {
         gigId: gig.id, clientId: gig.clientId, description: gig.title, number: inv.number.trim(),
-        issueDate: invDate, dueDate: invDue, amount: gig.price, inclVat: !!gig.priceInclVat, vatRate: s.vatRate, ...v,
+        issueDate: invDate, dueDate: invDue, amount: gig.price, inclVat: !!gig.priceInclVat, vatRate: invRate, ...v,
         status: inv.mode, attachment: inv.attachment, sentDate: inv.mode === 'osent' ? '' : invDate, paidDate: inv.mode === 'greitt' ? inv.paidDate || invDate : '', notes: '',
       });
     }
@@ -187,13 +188,15 @@ export function InvoiceForm({ id, gigId }) {
     const t = todayISO();
     return fromGig(gigId, {
       gigId: '', clientName: '', description: '', number: '', issueDate: t, dueDate: addDays(t, s.dueDays), dueTouched: false,
-      amount: 0, inclVat: false, vatRate: s.vatRate, status: 'sent', sentDate: t, paidDate: '', attachment: null, notes: '',
+      amount: 0, inclVat: false, vatRate: vatRateOn(s, t), vatTouched: false, status: 'sent', sentDate: t, paidDate: '', attachment: null, notes: '',
     });
   });
   const set = (patch) => setF((o) => {
     const n = { ...o, ...patch };
     if ((patch.issueDate || patch.clientName !== undefined) && !o.dueTouched) n.dueDate = addDays(n.issueDate, dueDaysFor(n.clientName));
     if (patch.issueDate && (o.sentDate === o.issueDate || !o.sentDate)) n.sentDate = patch.issueDate;
+    if (patch.vatRate !== undefined) n.vatTouched = true;
+    else if (patch.issueDate && !o.vatTouched && !existing) n.vatRate = vatRateOn(s, patch.issueDate);
     if (patch.status === 'greitt' && !n.paidDate) n.paidDate = todayISO();
     return n;
   });
@@ -203,7 +206,7 @@ export function InvoiceForm({ id, gigId }) {
 
   const save = () => {
     if (!f.amount) { notify('Vantar upphæð.', 'error'); return; }
-    const { clientName: cn, dueTouched, ...rest } = f;
+    const { clientName: cn, dueTouched, vatTouched, ...rest } = f;
     store.upsert('invoices', {
       ...rest, ...v, clientId: resolveClient(cn), number: (f.number || '').trim(),
       sentDate: f.status === 'osent' ? '' : f.sentDate || f.issueDate,
@@ -256,17 +259,24 @@ export function ExpenseForm({ id, preset, onSaved, title }) {
   const existing = store.find('expenses', id);
   const [f, setF] = useState(() => existing || {
     name: '', date: todayISO(), supplier: '', category: s.expenseCategories[0], amount: 0, inclVat: true, vatRate: s.vatRate,
-    deductible: true, deductPct: 100, foreign: false, asset: false, attachment: null, notes: '', ...(preset || {}),
+    deductible: isVatRegistered(s, (preset && preset.date) || todayISO()), deductPct: 100, foreign: false, asset: false, attachment: null, notes: '', ...(preset || {}),
   });
-  const set = (patch) => setF((o) => ({ ...o, ...patch }));
+  const set = (patch) => setF((o) => {
+    const n = { ...o, ...patch };
+    if (patch.deductible !== undefined) n.dedTouched = true;
+    else if (patch.date && !o.dedTouched && !existing) n.deductible = isVatRegistered(s, patch.date);
+    return n;
+  });
   const v = calcVat(f.amount, f.vatRate, f.inclVat);
+  const beforeVat = !isVatRegistered(s, f.date);
   const deductibleVat = f.deductible ? Math.round((v.vat * (Number(f.deductPct) || 0)) / 100) : 0;
   const suppliers = [...new Set(data.expenses.map((e) => e.supplier).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'is'));
 
   const save = () => {
     if (!f.name.trim()) { notify('Vantar heiti.', 'error'); return; }
     if (!f.amount) { notify('Vantar upphæð.', 'error'); return; }
-    const rec = store.upsert('expenses', { ...f, name: f.name.trim(), ...v, deductibleVat });
+    const { dedTouched, ...rest } = f;
+    const rec = store.upsert('expenses', { ...rest, name: f.name.trim(), ...v, deductibleVat });
     closeModal();
     if (onSaved) onSaved(rec);
   };
@@ -288,6 +298,7 @@ export function ExpenseForm({ id, preset, onSaved, title }) {
       <${PriceFields} amount=${f.amount} inclVat=${f.inclVat} vatRate=${f.vatRate} onChange=${set} label="Verð" />
       <div class="full checks">
         <label class="check"><input type="checkbox" checked=${f.deductible} onChange=${(e) => set({ deductible: e.target.checked })} /> Innskattur frádráttarbær</label>
+        ${beforeVat && html`<span class="hint">Fyrir VSK-skráningu: innskattur er almennt ekki frádráttarbær.</span>`}
         ${f.deductible && v.vat > 0 && html`<label class="check inline">Hlutfall <input type="number" min="0" max="100" value=${f.deductPct} onInput=${(e) => set({ deductPct: e.target.value })} class="pct" /> %</label>`}
       </div>
       <div class="full"><${VatSummary} ...${v} extra=${html`

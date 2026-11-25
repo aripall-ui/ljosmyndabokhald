@@ -10,6 +10,7 @@ export const COLLECTIONS = ['clients', 'gigs', 'invoices', 'expenses', 'purchase
 export const DEFAULT_SETTINGS = {
   vatRate: 24,
   dueDays: 14,
+  vatFrom: '',
   hourlyRate: 15000,
   categories: ['Brúðkaup', 'Portrett', 'Fermingar', 'Fjölskyldumyndir', 'Viðburðir', 'Fyrirtæki og auglýsingar', 'Vörumyndir', 'Fasteignir', 'Annað'],
   expenseCategories: ['Búnaður', 'Hugbúnaður', 'Áskriftir', 'Þjónusta', 'Ferðakostnaður', 'Sími og net', 'Markaðsmál', 'Námskeið', 'Annað'],
@@ -276,6 +277,14 @@ export async function importJSON(file) {
     return !dup;
   }).map(remap);
   inc.gigs = inc.gigs.filter((g) => !skippedGigs.has(g.id)).map(remap);
-  commit(merge(data, inc));
+  let next = merge(data, inc);
+  const patch = JSON.parse(await file.text()).settingsPatch;
+  if (patch) {
+    const st = { ...next.settings };
+    if (patch.vatFrom) st.vatFrom = patch.vatFrom;
+    if (patch.addCategories) st.categories = [...new Set([...st.categories.filter((c) => c !== 'Annað'), ...patch.addCategories, ...(st.categories.includes('Annað') ? ['Annað'] : [])])];
+    next = { ...next, settings: { ...st, updatedAt: Date.now() } };
+  }
+  commit(next);
   return { invoices: inc.invoices.length, gigs: inc.gigs.length, clients: inc.clients.length, skipped };
 }

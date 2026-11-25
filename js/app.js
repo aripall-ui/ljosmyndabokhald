@@ -94,6 +94,7 @@ function Settings() {
           <h2>Sjálfgefin gildi</h2>
           <div class="grid">
             <${Field} label="VSK-hlutfall (%)"><input type="number" value=${s.vatRate} onChange=${(e) => store.updateSettings({ vatRate: Number(e.target.value) || 0 })} /></${Field}>
+            <${Field} label="VSK-skráður frá" hint="Fyrir þennan dag: enginn VSK á sölu og enginn frádráttur innskatts. Autt = alltaf VSK-skráður."><input type="date" value=${s.vatFrom || ''} onChange=${(e) => store.updateSettings({ vatFrom: e.target.value })} /></${Field}>
             <${Field} label="Greiðslufrestur (dagar)"><input type="number" value=${s.dueDays} onChange=${(e) => store.updateSettings({ dueDays: Number(e.target.value) || 0 })} /></${Field}>
             <${Field} label="Tímagjald í reiknivél (kr.)"><input type="number" value=${s.hourlyRate} onChange=${(e) => store.updateSettings({ hourlyRate: Number(e.target.value) || 0 })} /></${Field}>
           </div>
