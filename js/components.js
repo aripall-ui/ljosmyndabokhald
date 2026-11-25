@@ -199,3 +199,22 @@ export function resolveClient(name) {
 }
 
 export { calcVat, notify };
+
+// Words of thrift shown under purchase tax effects
+const THRIFT = [
+  ['Græddur er geymdur eyrir.'],
+  ['Hóf er best í hverjum hlut.'],
+  ['Allt er gott í hófi.'],
+  ['Kemst þó hægt fari.'],
+  ['Dýr mundi Hafliði allur.'],
+  ['Sá er ekki ríkur, sem mikið á, heldur hinn sem lætur sér nægja.', 'Jón Vídalín'],
+  ['Sá sem sáir nægjusemi uppsker frið.'],
+  ['Fjár síns, er fengit hefr, skylit maðr þörf þola; oft sparir leiðum, þats hefr ljúfum hugat.', 'Hávamál'],
+];
+export function SpendNote({ amount }) {
+  const [q] = useState(() => THRIFT[Math.floor(Math.random() * THRIFT.length)]);
+  return html`<div class="spend-note">
+    <strong>Hins vegar þarftu samt að leggja út ${kr(amount)}</strong>
+    <blockquote><em>„${q[0]}“</em>${q[1] && html`<span> – ${q[1]}</span>`}</blockquote>
+  </div>`;
+}

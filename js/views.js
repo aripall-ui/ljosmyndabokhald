@@ -2,7 +2,7 @@ import { notify } from './notify.js';
 // Page views
 import { html, useState } from '../vendor/preact-htm.js';
 import * as store from './store.js';
-import { useStore, useUI, openModal, Icon, Badge, Empty, Segmented, Field, MoneyInput, VatSummary, setYear } from './components.js';
+import { useStore, useUI, openModal, Icon, Badge, Empty, Segmented, Field, MoneyInput, VatSummary, setYear, SpendNote } from './components.js';
 import { kr, fmtDate, todayISO, periodRange, periodLabel, yearOf, sum, calcVat, MONTHS, VAT_PERIODS, inRange } from './util.js';
 import {
   GIG_STATUS, PRICING, INV_STATUS, INV_LABEL, CONV_TYPE, PURCHASE_STATUS, PRIORITY, ACTIVE_PURCHASE, clientName, invoiceForGig, gigsNeedingInvoice,
@@ -354,6 +354,7 @@ export function Purchases() {
             <div class="sep"><span>Til hliðar fyrir skatta núna</span><strong>${kr(listFx.before)}</strong></div>
             <div class="hl"><span>Til hliðar eftir kaupin</span><strong>${kr(listFx.after)}</strong></div>
           </div>
+          <${SpendNote} amount=${listFx.realCost} />
           <p class="hint">Miðað við skattaáætlunina í Bókhaldi (${thisYear}). Dýr búnaður er stundum fyrndur yfir nokkur ár, og þá dreifist lækkunin á tekjuskattinum á þau ár. Bókarinn veit hvað á við.</p>`
           : html`<p class="muted">Ekkert á innkaupalista. Settu vöru á „Á innkaupalista“ til að sjá áhrifin.</p>`}
         </section>

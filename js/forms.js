@@ -3,7 +3,7 @@ import { html, useState } from '../vendor/preact-htm.js';
 import * as store from './store.js';
 import {
   Modal, Field, Segmented, MoneyInput, VatSummary, PriceFields, AttachmentField, ClientInput, resolveClient,
-  closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal,
+  closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal, SpendNote,
 } from './components.js';
 import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
 import { purchaseTaxEffect } from './tax.js';
@@ -423,6 +423,7 @@ function TaxEffect({ amount, inclVat, vatRate }) {
   return html`<div class="full tax-effect">
     <div><span>Ef keypt í dag lækka skattarnir um</span><strong>${kr(fx.saving)}</strong></div>
     <small class="muted">VSK til baka ${kr(fx.vatBack)} + lægri tekjuskattur ${kr(fx.incomeTax)} · raunkostnaður eftir skatta <strong>${kr(fx.realCost)}</strong> · til hliðar fyrir skatta fer úr ${kr(fx.before)} í ${kr(fx.after)}</small>
+    <${SpendNote} amount=${fx.realCost} />
   </div>`;
 }
 

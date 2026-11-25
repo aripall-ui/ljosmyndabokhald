@@ -364,3 +364,7 @@ button.primary.danger-fill { background: var(--red); border-color: var(--red); c
 .tax-effect > div { display: flex; justify-content: space-between; gap: 10px; }
 .tax-effect strong { color: var(--green); }
 .tax-effect small { font-size: 12.5px; }
+.spend-note { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.spend-note strong { color: var(--red) !important; font-size: 14px; }
+.spend-note blockquote { margin: 0; color: var(--muted); font-size: 13.5px; }
+.spend-note blockquote span { font-size: 12.5px; }
