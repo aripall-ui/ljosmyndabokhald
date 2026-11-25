@@ -98,7 +98,9 @@ function GigRow({ g, data }) {
       </span>
     </div>
     <div class="item-amount">
-      ${g.pricing === 'samid' ? html`${kr(a.net)}<small>án VSK</small>`
+      ${g.pricing === 'samid' ? html`${kr(a.net)}<small>án VSK</small>
+          ${inv && (inv.status === 'sent' || inv.status === 'osent') && html`<div class="row end"><button type="button" class="ghost small" onClick=${(e) => { e.stopPropagation(); openModal('paid', { id: inv.id }); }}><${Icon} name="check" size=${14} /> Merkja greitt</button></div>`}
+          ${!inv && g.status !== 'haett' && html`<div class="row end"><button type="button" class="ghost small" onClick=${(e) => { e.stopPropagation(); openModal('invoice', { gigId: g.id }); }}>Skrá reikning</button></div>`}`
         : g.pricing === 'osamid' ? html`<span class="red strong">Ósamið</span>
           <button type="button" class="ghost small" onClick=${(e) => { e.stopPropagation(); openModal('suggest', { category: g.category, estHours: Number(g.estHours) || 0, excludeId: g.id, onUse: (price) => store.upsert('gigs', { ...store.find('gigs', g.id), price, priceInclVat: false, pricing: 'samid' }) }); }}>Stinga upp á verði</button>`
         : html`<span class="muted">${PRICING[g.pricing]}</span>`}

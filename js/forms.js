@@ -290,10 +290,21 @@ export function ConvertModal({ id }) {
 export function PaidModal({ id }) {
   const inv = store.find('invoices', id);
   const [date, setDate] = useState(todayISO());
-  const save = () => { store.upsert('invoices', { ...inv, status: 'greitt', paidDate: date, sentDate: inv.sentDate || inv.issueDate }); closeModal(); };
+  const gig = store.find('gigs', inv.gigId);
+  const canClose = gig && gig.status !== 'lokid' && gig.status !== 'haett';
+  const [closeGig, setCloseGig] = useState(true);
+  const save = () => {
+    store.upsert('invoices', { ...inv, status: 'greitt', paidDate: date, sentDate: inv.sentDate || inv.issueDate });
+    if (canClose && closeGig) store.upsert('gigs', { ...store.find('gigs', inv.gigId), status: 'lokid' });
+    closeModal();
+    notify(canClose && closeGig ? 'Merkt greitt og giggi lokað.' : 'Merkt greitt.');
+  };
   return html`<${Modal} title="Merkja greitt" footer=${html`<${Footer} onSave=${save} saveLabel="Merkja greitt" />`}>
     <p>${inv.description || 'Reikningur'} ${inv.number ? '· nr. ' + inv.number : ''} – <strong>${kr(inv.gross)}</strong></p>
-    <${Field} label="Greiðsludagur"><input type="date" value=${date} onInput=${(e) => setDate(e.target.value)} /></${Field}>
+    <div class="stack-sm">
+      <${Field} label="Greiðsludagur"><input type="date" value=${date} onInput=${(e) => setDate(e.target.value)} /></${Field}>
+      ${canClose && html`<label class="check"><input type="checkbox" checked=${closeGig} onChange=${(e) => setCloseGig(e.target.checked)} /> Loka gigginu „${gig.title}“ (merkja Lokið)</label>`}
+    </div>
   </${Modal}>`;
 }
 
