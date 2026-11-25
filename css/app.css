@@ -338,3 +338,6 @@ details summary { cursor: pointer; color: var(--accent); margin-top: 16px; font-
 button.primary.danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
 .demo-banner { display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; background: var(--accent-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 18px; font-size: 13.5px; }
 @media (max-width: 760px) { .toasts { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }
+/* toasts at the top so they never cover form buttons */
+.toasts, .toasts { top: calc(16px + env(safe-area-inset-top, 0px)); bottom: auto; }
+@media (max-width: 760px) { .toasts { top: calc(64px + env(safe-area-inset-top, 0px)); bottom: auto; } }

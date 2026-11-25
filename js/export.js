@@ -1,7 +1,7 @@
 // "Gögn fyrir bókara": ZIP with CSV files + attached invoices and receipts
 import * as store from './store.js';
 import { periodRange, periodLabel, asciiName, safeFileName, VAT_PERIODS, todayISO } from './util.js';
-import { summarize, clientName, INV_STATUS, PRICING, GIG_STATUS, expenseCost } from './calc.js';
+import { summarize, clientName, INV_STATUS, PRICING, GIG_STATUS, CONV_TYPE, expenseCost } from './calc.js';
 
 const cell = (v) => {
   if (v == null) return '';
@@ -42,6 +42,14 @@ export async function exportForAccountant(data, period, progress = () => {}) {
     invRows.push([i.number, i.issueDate, i.dueDate, c.name, c.kennitala, i.description, i.net, i.vatRate, i.vat, i.gross, INV_STATUS[i.status], i.sentDate, i.paidDate, file]);
   }
   zip.file('reikningar.csv', csv(invRows));
+
+  // Invoices turned into a favour or credit (not revenue)
+  const conv = data.invoices.filter((i) => i.status === 'nidurfellt' && i.issueDate >= range[0] && i.issueDate <= range[1]);
+  if (conv.length) {
+    const convRows = [['Reikningsnúmer', 'Útgáfudagur', 'Viðskiptavinur', 'Lýsing', 'Upphæð með VSK', 'Breytt í', 'Dags. breytingar', 'Felldur niður í Konto', 'Nr. kreditreiknings', 'Athugasemd']];
+    for (const i of conv) convRows.push([i.number, i.issueDate, clientName(data, i.clientId), i.description, i.gross, CONV_TYPE[i.convType], i.convDate, yesNo(i.creditDone), i.creditNumber, i.convNote]);
+    zip.file('nidurfelldir-reikningar.csv', csv(convRows));
+  }
 
   // Payments received in period
   const payRows = [['Greiðsludagur', 'Reikningsnúmer', 'Útgáfudagur', 'Viðskiptavinur', 'Upphæð með VSK']];
@@ -106,6 +114,7 @@ export async function exportForAccountant(data, period, progress = () => {}) {
     'utistandandi.csv – ógreiddir reikningar í lok tímabils',
     'kostnadur.csv    – rekstrarkostnaður með VSK-sundurliðun',
     'gigg.csv         – verkefni á tímabilinu',
+    'nidurfelldir-reikningar.csv – reikningum breytt í greiða/inneign (ef einhverjir)',
     'Reikningar/ og Kvittanir/ – fylgiskjöl, vísað til í CSV-skrám',
     '',
     'CSV-skrár eru semíkommuaðgreindar (opnast beint í Excel).',

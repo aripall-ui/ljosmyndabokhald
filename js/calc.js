@@ -2,8 +2,11 @@
 import { calcVat, sum, todayISO, inRange, yearOf, median, roundTo, daysBetween, addDays, fmtNum } from './util.js';
 
 export const GIG_STATUS = { bokad: 'Bókað', vinnsla: 'Í vinnslu', afhent: 'Afhent', lokid: 'Lokið', haett: 'Hætt við' };
-export const PRICING = { samid: 'Samið', osamid: 'Ósamið', probono: 'Pro bono', greidi: 'Greiði' };
+export const PRICING = { samid: 'Samið', osamid: 'Ósamið', probono: 'Pro bono', greidi: 'Greiði', inneign: 'Inneign' };
 export const INV_STATUS = { osent: 'Ósent', sent: 'Sent / ógreitt', greitt: 'Greitt' };
+// An invoice turned into a favour or credit: not revenue; reminder until cancelled in the invoicing system
+export const CONV_TYPE = { greidi: 'Greiði', inneign: 'Inneign' };
+export const INV_LABEL = { ...INV_STATUS, nidurfellt: 'Niðurfellt' };
 export const PURCHASE_STATUS = { hugmynd: 'Hugmynd', skodun: 'Í skoðun', listi: 'Á innkaupalista', keypt: 'Keypt', fallid: 'Fallið frá' };
 export const PRIORITY = { mikil: 'Mikil þörf', gagnlegt: 'Gagnlegt', mabida: 'Má bíða' };
 export const ACTIVE_PURCHASE = ['hugmynd', 'skodun', 'listi'];
@@ -78,6 +81,9 @@ export function attentionItems(data) {
   const items = [];
   for (const i of data.invoices) {
     if (isOverdue(i, t)) items.push({ tone: 'red', text: `Reikningur ${i.number || ''} er kominn fram yfir eindaga`, sub: `${clientName(data, i.clientId)} · ${daysBetween(i.dueDate, t)} dagar`, open: { type: 'invoice', id: i.id } });
+  }
+  for (const i of data.invoices.filter((i) => i.status === 'nidurfellt' && !i.creditDone)) {
+    items.push({ tone: 'amber', text: `Fella niður reikning ${i.number || ''} í Konto`, sub: `Breytt í ${(CONV_TYPE[i.convType] || '').toLowerCase()} · ${clientName(data, i.clientId)}`, open: { type: 'invoice', id: i.id } });
   }
   for (const i of data.invoices.filter((i) => i.status === 'osent')) {
     items.push({ tone: 'amber', text: `Reikningur ósendur: ${i.description || i.number || 'án lýsingar'}`, sub: clientName(data, i.clientId), open: { type: 'invoice', id: i.id } });

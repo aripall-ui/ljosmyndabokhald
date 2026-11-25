@@ -5,13 +5,13 @@ import * as store from './store.js';
 import { useStore, useUI, openModal, Icon, Badge, Empty, Segmented, Field, MoneyInput, VatSummary, setYear } from './components.js';
 import { kr, fmtDate, todayISO, periodRange, periodLabel, yearOf, sum, calcVat, MONTHS, VAT_PERIODS, inRange } from './util.js';
 import {
-  GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, ACTIVE_PURCHASE, clientName, invoiceForGig, gigsNeedingInvoice,
+  GIG_STATUS, PRICING, INV_STATUS, INV_LABEL, CONV_TYPE, PURCHASE_STATUS, PRIORITY, ACTIVE_PURCHASE, clientName, invoiceForGig, gigsNeedingInvoice,
   summarize, yearsInData, upcomingGigs, attentionItems, gigAmounts, isOverdue, expenseCost,
 } from './calc.js';
 import { exportForAccountant } from './export.js';
 
 const STATUS_TONE = { bokad: 'blue', vinnsla: 'amber', afhent: 'purple', lokid: 'green', haett: 'grey' };
-const INV_TONE = { osent: 'amber', sent: 'blue', greitt: 'green' };
+const INV_TONE = { osent: 'amber', sent: 'blue', greitt: 'green', nidurfellt: 'grey' };
 const PRIO_TONE = { mikil: 'red', gagnlegt: 'amber', mabida: 'grey' };
 
 export function YearSelect() {
@@ -93,7 +93,7 @@ function GigRow({ g, data }) {
       <span class="muted">${[clientName(data, g.clientId), g.category, g.date && yearOf(g.date) !== new Date().getFullYear() ? yearOf(g.date) : ''].filter(Boolean).join(' · ')}</span>
       <span class="badges">
         <${Badge} tone=${STATUS_TONE[g.status]}>${GIG_STATUS[g.status]}</${Badge}>
-        ${inv ? html`<${Badge} tone=${INV_TONE[inv.status]}>Reikn.: ${INV_STATUS[inv.status]}</${Badge}>`
+        ${inv ? html`<${Badge} tone=${INV_TONE[inv.status]}>Reikn.: ${INV_LABEL[inv.status]}</${Badge}>`
           : g.pricing === 'samid' && g.status !== 'haett' ? html`<${Badge} tone="amber">Vantar reikning</${Badge}>` : ''}
       </span>
     </div>
@@ -154,6 +154,8 @@ function InvoiceRow({ i, data, year }) {
         ${older && i.status !== 'greitt' && html`<${Badge} tone="purple">Frá ${yearOf(i.issueDate)}</${Badge}>`}
         ${i.attachment && html`<${Badge}><${Icon} name="clip" size=${12} /> PDF</${Badge}>`}
         ${i.vatRate === 0 && html`<${Badge}>Án VSK</${Badge}>`}
+        ${i.status === 'nidurfellt' && html`<${Badge} tone="purple">Breytt í ${(CONV_TYPE[i.convType] || '').toLowerCase()}</${Badge}>`}
+        ${i.status === 'nidurfellt' && !i.creditDone && html`<${Badge} tone="amber">Á eftir að fella niður í Konto</${Badge}>`}
       </span>
     </div>
     <div class="item-amount">${kr(i.gross)}<small>${kr(i.net)} án VSK</small>
@@ -173,6 +175,7 @@ export function Invoices() {
   const unsent = data.invoices.filter((i) => i.status === 'osent').sort((a, b) => (a.issueDate || '').localeCompare(b.issueDate || ''));
   const outstanding = data.invoices.filter((i) => i.status === 'sent').sort((a, b) => (a.issueDate || '').localeCompare(b.issueDate || ''));
   const paid = data.invoices.filter((i) => i.status === 'greitt' && yearOf(i.issueDate) === year).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
+  const converted = data.invoices.filter((i) => i.status === 'nidurfellt' && (yearOf(i.issueDate) === year || !i.creditDone));
   const needAmounts = need.map((g) => ({ g, ...gigAmounts(g, data.settings) }));
   const unsentAll = [...unsent, ...needAmounts];
 
@@ -203,6 +206,9 @@ export function Invoices() {
           <div class="list">${unsent.map((i) => html`<${InvoiceRow} i=${i} data=${data} year=${year} key=${i.id} />`)}</div>`}
         ${!unsentAll.length && html`<${Empty}>Engir ósendir reikningar.</${Empty}>`}`}
       ${tab === 'sent' && (outstanding.length ? html`<div class="list">${outstanding.map((i) => html`<${InvoiceRow} i=${i} data=${data} year=${year} key=${i.id} />`)}</div>` : html`<${Empty}>Ekkert útistandandi.</${Empty}>`)}
+      ${tab === 'greitt' && converted.length > 0 && html`<h3 class="subhead">Breytt í greiða / inneign <span class="muted">(telst ekki til tekna)</span></h3>
+        <div class="list">${converted.map((i) => html`<${InvoiceRow} i=${i} data=${data} year=${year} key=${i.id} />`)}</div>`}
+      ${tab === 'greitt' && paid.length > 0 && converted.length > 0 && html`<h3 class="subhead">Greiddir reikningar</h3>`}
       ${tab === 'greitt' && (paid.length ? html`<div class="list">${paid.map((i) => html`<${InvoiceRow} i=${i} data=${data} year=${year} key=${i.id} />`)}</div>` : html`<${Empty}>Engir greiddir reikningar útgefnir ${year}.</${Empty}>`)}
     </section>`;
 }

@@ -6,7 +6,7 @@ import {
   closeModal, openModal, confirmDelete, Badge, Icon, notify, ConfirmModal,
 } from './components.js';
 import { calcVat, kr, todayISO, addDays, fmtDate, yearOf } from './util.js';
-import { GIG_STATUS, PRICING, INV_STATUS, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts, vatRateOn, isVatRegistered } from './calc.js';
+import { GIG_STATUS, PRICING, INV_STATUS, INV_LABEL, CONV_TYPE, PURCHASE_STATUS, PRIORITY, clientName, invoiceForGig, suggestPrice, gigAmounts, vatRateOn, isVatRegistered } from './calc.js';
 
 const num = (v) => (v === '' || v == null ? '' : Number(v));
 // Payment terms: the client's own, else the default from settings
@@ -95,8 +95,8 @@ export function GigForm({ id }) {
         </${Field}>
         <div class="full"><${VatSummary} ...${amounts} /></div>
         <div class="full"><button type="button" class="link-btn" onClick=${suggest}>Bera saman við fyrri verkefni</button></div>`}
-      ${(f.pricing === 'probono' || f.pricing === 'greidi') && html`
-        <${Field} label="Áætlað virði (valfrjálst)" hint="Aðeins til viðmiðunar – telst ekki til tekna"><${MoneyInput} value=${f.estValue} onChange=${(v) => set({ estValue: v })} /></${Field}>`}
+      ${(f.pricing === 'probono' || f.pricing === 'greidi' || f.pricing === 'inneign') && html`
+        <${Field} label=${f.pricing === 'inneign' ? 'Virði inneignar' : 'Áætlað virði (valfrjálst)'} hint="Aðeins til viðmiðunar – telst ekki til tekna"><${MoneyInput} value=${f.estValue} onChange=${(v) => set({ estValue: v })} /></${Field}>`}
 
       <${Field} label="Áætlaðir tímar"><input type="number" min="0" step="0.5" inputmode="decimal" value=${f.estHours} onInput=${(e) => set({ estHours: e.target.value })} /></${Field}>
       <${Field} label="Raunverulegir tímar"><input type="number" min="0" step="0.5" inputmode="decimal" value=${f.actualHours} onInput=${(e) => set({ actualHours: e.target.value })} /></${Field}>
@@ -104,7 +104,7 @@ export function GigForm({ id }) {
 
       ${linked && html`<div class="full info-row">
         <span>Reikningur ${linked.number || ''} · ${fmtDate(linked.issueDate)}</span>
-        <${Badge} tone=${linked.status === 'greitt' ? 'green' : linked.status === 'sent' ? 'blue' : 'amber'}>${INV_STATUS[linked.status]}</${Badge}>
+        <${Badge} tone=${linked.status === 'greitt' ? 'green' : linked.status === 'sent' ? 'blue' : linked.status === 'nidurfellt' ? 'grey' : 'amber'}>${INV_LABEL[linked.status]}</${Badge}>
         <button type="button" class="link-btn" onClick=${() => openModal('invoice', { id: linked.id })}>Opna</button>
       </div>`}
       ${!linked && f.pricing === 'samid' && f.price > 0 && html`<fieldset class="full sub">
@@ -231,13 +231,57 @@ export function InvoiceForm({ id, gigId }) {
       <${Field} label="Eindagi" hint=${f.dueTouched && existing ? '' : dueHint(f.clientName)}><input type="date" value=${f.dueDate} onInput=${(e) => set({ dueDate: e.target.value, dueTouched: true })} /></${Field}>
       <${PriceFields} amount=${f.amount} inclVat=${f.inclVat} vatRate=${f.vatRate} rates=${[s.vatRate, 0]} onChange=${set} />
       <div class="full"><${VatSummary} ...${v} /></div>
+      ${f.status === 'nidurfellt' ? html`<${ConvertedBox} f=${f} set=${set} id=${id} />` : html`
       <${Field} label="Staða" full><${Segmented} options=${INV_STATUS} value=${f.status} onChange=${(k) => set({ status: k })} /></${Field}>
-      ${f.status !== 'osent' && html`<${Field} label="Sent dags."><input type="date" value=${f.sentDate} onInput=${(e) => set({ sentDate: e.target.value })} /></${Field}>`}
+      ${existing && f.status !== 'greitt' && html`<div class="full"><button type="button" class="ghost small" onClick=${() => openModal('convert', { id })}>Breyta í greiða eða inneign</button></div>`}`}
+      ${f.status !== 'osent' && f.status !== 'nidurfellt' && html`<${Field} label="Sent dags."><input type="date" value=${f.sentDate} onInput=${(e) => set({ sentDate: e.target.value })} /></${Field}>`}
       ${f.status === 'greitt' && html`<${Field} label="Greitt dags."><input type="date" value=${f.paidDate} onInput=${(e) => set({ paidDate: e.target.value })} /></${Field}>`}
       <${Field} label="Reikningur (PDF)" full>
         <${AttachmentField} value=${f.attachment} onChange=${(a) => set({ attachment: a })} folder=${'Reikningar/' + (yearOf(f.issueDate) || '')} baseName=${`${f.issueDate} ${f.number || ''} ${f.clientName || ''}`} />
       </${Field}>
       <${Field} label="Athugasemdir" full><textarea rows="2" value=${f.notes} onInput=${(e) => set({ notes: e.target.value })}></textarea></${Field}>
+    </div>
+  </${Modal}>`;
+}
+
+function ConvertedBox({ f, set, id }) {
+  const undo = () => {
+    const inv = store.find('invoices', id);
+    store.upsert('invoices', { ...inv, status: inv.prevStatus || 'sent', convType: '', creditDone: false });
+    const g = store.find('gigs', inv.gigId);
+    if (g && (g.pricing === 'greidi' || g.pricing === 'inneign')) store.upsert('gigs', { ...g, pricing: 'samid' });
+    closeModal();
+    notify('Breytingin var afturkölluð.');
+  };
+  return html`<fieldset class="full sub">
+    <legend>Breytt í ${(CONV_TYPE[f.convType] || '').toLowerCase()}${f.convDate ? ' · ' + fmtDate(f.convDate) : ''}</legend>
+    <p class="hint">Telst ekki til tekna, útistandandi greiðslna eða VSK.</p>
+    ${f.convNote && html`<p>${f.convNote}</p>`}
+    <label class="check"><input type="checkbox" checked=${!!f.creditDone} onChange=${(e) => set({ creditDone: e.target.checked })} /> Reikningur felldur niður í Konto (kreditreikningur)</label>
+    ${f.creditDone && html`<${Field} label="Nr. kreditreiknings (valfrjálst)"><input type="text" value=${f.creditNumber || ''} onInput=${(e) => set({ creditNumber: e.target.value })} /></${Field}>`}
+    <div><button type="button" class="link-btn small" onClick=${undo}>Afturkalla breytingu</button></div>
+  </fieldset>`;
+}
+
+export function ConvertModal({ id }) {
+  const inv = store.find('invoices', id);
+  const [c, setC] = useState({ convType: 'greidi', convDate: todayISO(), convNote: '', creditDone: false, creditNumber: '' });
+  const set = (p) => setC((o) => ({ ...o, ...p }));
+  const save = () => {
+    store.upsert('invoices', { ...inv, ...c, status: 'nidurfellt', prevStatus: inv.status });
+    const g = store.find('gigs', inv.gigId);
+    if (g) store.upsert('gigs', { ...g, pricing: c.convType, estValue: inv.net });
+    closeModal(); closeModal();
+    notify(c.creditDone ? 'Reikningi breytt.' : `Reikningi breytt. Mundu að fella hann niður í Konto – áminning er á Yfirliti.`);
+  };
+  return html`<${Modal} title="Breyta í greiða eða inneign" footer=${html`<${Footer} onSave=${save} saveLabel="Breyta" />`}>
+    <div class="grid">
+      <p class="full">${inv.description || 'Reikningur'} ${inv.number ? '· nr. ' + inv.number : ''} – <strong>${kr(inv.gross)}</strong></p>
+      <${Field} label="Breyta í" full><${Segmented} options=${CONV_TYPE} value=${c.convType} onChange=${(k) => set({ convType: k })} /></${Field}>
+      <${Field} label="Dagsetning"><input type="date" value=${c.convDate} onInput=${(e) => set({ convDate: e.target.value })} /></${Field}>
+      <${Field} label="Athugasemd" full><textarea rows="2" value=${c.convNote} placeholder=${c.convType === 'inneign' ? 't.d. inneign hjá viðskiptavini – í hverju og hve mikið' : 't.d. ástæða'} onInput=${(e) => set({ convNote: e.target.value })}></textarea></${Field}>
+      <label class="check full"><input type="checkbox" checked=${c.creditDone} onChange=${(e) => set({ creditDone: e.target.checked })} /> Ég er þegar búin(n) að fella reikninginn niður í Konto</label>
+      ${!c.creditDone && html`<p class="hint full">Þú færð áminningu á Yfirliti þar til þú hakar við að reikningurinn hafi verið felldur niður.</p>`}
     </div>
   </${Modal}>`;
 }
@@ -391,7 +435,7 @@ export function ClientForm({ id }) {
 }
 
 export const MODALS = {
-  gig: GigForm, suggest: SuggestModal, invoice: InvoiceForm, paid: PaidModal, expense: ExpenseForm,
+  gig: GigForm, suggest: SuggestModal, invoice: InvoiceForm, paid: PaidModal, convert: ConvertModal, expense: ExpenseForm,
   purchase: PurchaseForm, buy: BuyForm, client: ClientForm, confirm: ConfirmModal,
 };
 export { Icon, gigAmounts };
