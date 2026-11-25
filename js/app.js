@@ -103,7 +103,7 @@ function Settings() {
           <h2>Skattaáætlun</h2>
           <p class="hint">Forsendur fyrir „Til hliðar fyrir skatta“. Tölur 2026 frá Skattinum.</p>
           <div class="grid">
-            <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þíns. Meðaltal 14,94%"><input type="number" step="0.01" value=${s.utsvar ?? 14.94} onChange=${(e) => store.updateSettings({ utsvar: Number(String(e.target.value).replace(',', '.')) || 14.94 })} /></${Field}>
+            <${Field} label="Útsvar (%)" hint="Útsvar sveitarfélagsins þar sem þú átt lögheimili. Reykjavík: 14,97%"><input type="number" step="0.01" value=${s.utsvar ?? 14.97} onChange=${(e) => store.updateSettings({ utsvar: Number(String(e.target.value).replace(',', '.')) || 14.97 })} /></${Field}>
             <${Field} label="Aðrar launatekjur á ári (kr.)" hint="Laun frá vinnuveitanda, fyrir skatt. Hefur áhrif á skattþrep"><input type="number" value=${s.otherIncome || ''} placeholder="0" onChange=${(e) => store.updateSettings({ otherIncome: Number(e.target.value) || 0 })} /></${Field}>
             <${Field} label="Reiknað endurgjald á ári (kr.)" hint="Autt = allur hagnaður (varfærið). Bókarinn ákveður þessa tölu"><input type="number" value=${s.ownPay ?? ''} placeholder="Allur hagnaður" onChange=${(e) => store.updateSettings({ ownPay: e.target.value === '' ? '' : Number(e.target.value) })} /></${Field}>
             <${Field} label="Skattur þegar greiddur á árinu (kr.)" hint="T.d. staðgreiðsla af reiknuðu endurgjaldi"><input type="number" value=${s.taxPrepaid || ''} placeholder="0" onChange=${(e) => store.updateSettings({ taxPrepaid: Number(e.target.value) || 0 })} /></${Field}>

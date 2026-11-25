@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS = {
   dueDays: 14,
   vatFrom: '',
   vatExemptCategories: ['Tónlist'],
-  utsvar: 14.94,
+  utsvar: 14.97, // Reykjavík
   otherIncome: 0,
   ownPay: '',
   pensionOn: true,
@@ -150,6 +150,14 @@ function handleError(e) {
   else setSync('error', e.message || 'Villa við vistun');
 }
 
+// One-time data updates after the app changes (run after the latest data has loaded)
+function migrate() {
+  if (!data.settings.taxV) {
+    const u = data.settings.utsvar;
+    updateSettings({ taxV: 1, ...(u == null || u === 14.94 ? { utsvar: 14.97 } : {}) });
+  }
+}
+
 export async function refresh() {
   if (mode !== 'dropbox') return;
   if (busy) return;
@@ -157,6 +165,7 @@ export async function refresh() {
     setSync('saving', 'Sæki gögn…');
     await pullRemote();
     setSync('idle');
+    migrate();
     if (dirty) await push();
   } catch (e) { handleError(e); }
 }
@@ -181,6 +190,7 @@ export async function init() {
     idbSet('data', data).catch(() => {});
   }
   emit();
+  if (mode === 'local') migrate();
   if (mode === 'dropbox') {
     if (!dbx.isConnected()) setSync('auth', 'Tengjast þarf Dropbox aftur');
     else refresh();

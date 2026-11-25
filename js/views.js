@@ -445,7 +445,7 @@ function Taxes({ data, year }) {
           </tbody>
           <tfoot>${row('Samtals', Math.max(0, t.now.tg + t.now.pension + t.now.incomeTax - t.prepaid), t.full.tg + t.full.pension + t.full.incomeTax)}</tfoot>
         </table></div>
-        <p class="hint">Skattlagt í álagningu næsta sumar. Hlutfallið er jaðarskattur ofan á ${s.otherIncome ? `aðrar launatekjur (${kr(s.otherIncome)})` : 'engar aðrar tekjur'} með útsvari ${String(s.utsvar || 14.94).replace('.', ',')}%. ${s.ownPay === '' || s.ownPay == null ? 'Allur hagnaður reiknaður sem reiknað endurgjald (varfærið).' : ''}</p>
+        <p class="hint">Skattlagt í álagningu næsta sumar. Hlutfallið er jaðarskattur ofan á ${s.otherIncome ? `aðrar launatekjur (${kr(s.otherIncome)})` : 'engar aðrar tekjur'} með útsvari ${String(s.utsvar || 14.97).replace('.', ',')}%. ${s.ownPay === '' || s.ownPay == null ? 'Allur hagnaður reiknaður sem reiknað endurgjald (varfærið).' : ''}</p>
       </div>
       <div>
         <h3>Virðisaukaskattur</h3>
