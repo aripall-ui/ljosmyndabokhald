@@ -255,7 +255,27 @@ export function exportJSON() {
   a.download = `afrit-${todayISO()}.json`;
   a.click();
 }
+// Imports a backup or an import file. Clients that already exist (same kennitala or name)
+// are reused, and invoices whose number is already registered are skipped with their gig.
 export async function importJSON(file) {
-  const incoming = JSON.parse(await file.text());
-  commit(merge(data, incoming));
+  const inc = normalize(JSON.parse(await file.text()));
+  const norm = (s) => (s || '').trim().toLowerCase();
+  const clientMap = {};
+  inc.clients = inc.clients.filter((c) => {
+    const same = data.clients.find((x) => x.id !== c.id && ((c.kennitala && x.kennitala && x.kennitala.replace(/\D/g, '') === c.kennitala.replace(/\D/g, '')) || norm(x.name) === norm(c.name)));
+    if (same) { clientMap[c.id] = same.id; return false; }
+    return true;
+  });
+  const remap = (r) => (r.clientId && clientMap[r.clientId] ? { ...r, clientId: clientMap[r.clientId] } : r);
+  const known = new Set(data.invoices.map((i) => norm(i.number)).filter(Boolean));
+  const skippedGigs = new Set();
+  let skipped = 0;
+  inc.invoices = inc.invoices.filter((i) => {
+    const dup = i.number && known.has(norm(i.number)) && !data.invoices.some((x) => x.id === i.id);
+    if (dup) { skipped++; if (i.gigId) skippedGigs.add(i.gigId); }
+    return !dup;
+  }).map(remap);
+  inc.gigs = inc.gigs.filter((g) => !skippedGigs.has(g.id)).map(remap);
+  commit(merge(data, inc));
+  return { invoices: inc.invoices.length, gigs: inc.gigs.length, clients: inc.clients.length, skipped };
 }
