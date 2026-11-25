@@ -106,6 +106,7 @@ export function GigForm({ id }) {
         <span>Reikningur ${linked.number || ''} · ${fmtDate(linked.issueDate)}</span>
         <${Badge} tone=${linked.status === 'greitt' ? 'green' : linked.status === 'sent' ? 'blue' : linked.status === 'nidurfellt' ? 'grey' : 'amber'}>${INV_LABEL[linked.status]}</${Badge}>
         <button type="button" class="link-btn" onClick=${() => openModal('invoice', { id: linked.id })}>Opna</button>
+        ${(linked.status === 'osent' || linked.status === 'sent') && html`<button type="button" class="ghost small" onClick=${() => openModal('convert', { id: linked.id })}>Breyta í greiða eða inneign</button>`}
       </div>`}
       ${!linked && f.pricing === 'samid' && f.price > 0 && html`<fieldset class="full sub">
         <legend>Reikningur</legend>
@@ -271,7 +272,7 @@ export function ConvertModal({ id }) {
     store.upsert('invoices', { ...inv, ...c, status: 'nidurfellt', prevStatus: inv.status });
     const g = store.find('gigs', inv.gigId);
     if (g) store.upsert('gigs', { ...g, pricing: c.convType, estValue: inv.net });
-    closeModal(); closeModal();
+    closeModal(); closeModal(); // closes this dialog and the form it was opened from
     notify(c.creditDone ? 'Reikningi breytt.' : `Reikningi breytt. Mundu að fella hann niður í Konto – áminning er á Yfirliti.`);
   };
   return html`<${Modal} title="Breyta í greiða eða inneign" footer=${html`<${Footer} onSave=${save} saveLabel="Breyta" />`}>
